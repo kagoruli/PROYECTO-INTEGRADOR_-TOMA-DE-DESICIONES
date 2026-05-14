@@ -33,7 +33,7 @@ st.markdown(
     .section-title {
         font-size: 1.25rem;
         font-weight: 800;
-        color: #0f172a;
+        color: #272AF5;
         margin-top: 12px;
         margin-bottom: 8px;
     }
@@ -1079,21 +1079,21 @@ with tab6:
 
     
     st.download_button(
-        label="⬇ Descargar TXT",
+        label=" Descargar TXT",
         data=reporte.encode("utf-8"),
         file_name="reporte_academico.txt",
         mime="text/plain",
     )
     excel = convertir_excel(df_filtrado, reporte)
     st.download_button(
-        label="⬇ Descargar Excel",
+        label=" Descargar Excel",
         data=excel,
         file_name="reporte_academico.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
     pdf_bytes = generar_pdf(df_filtrado, analisis)
     st.download_button(
-        label="⬇ Descargar PDF",
+        label=" Descargar PDF",
         data=pdf_bytes,
         file_name="reporte_academico.pdf",
         mime="application/pdf",
