@@ -483,7 +483,7 @@ def limpiar_dataset_general(df):
     return df
 
 
-def aplicar_filtros(df):
+def obtener_filtros(df):
     with st.sidebar:
         st.header("Filtros")
 
@@ -498,18 +498,28 @@ def aplicar_filtros(df):
         periodo = st.selectbox("Periodo", periodos)
         busqueda = st.text_input("Buscar alumno o matrícula")
 
+    return {
+        "carrera": carrera,
+        "materia": materia,
+        "grupo": grupo,
+        "periodo": periodo,
+        "busqueda": busqueda
+    }
+
+
+def aplicar_filtros_custom(df, filtros, omitir=None):
     filtrado = df.copy()
 
-    if carrera != "Todas" and "carrera" in filtrado:
-        filtrado = filtrado[filtrado["carrera"] == carrera]
-    if materia != "Todas" and "materia" in filtrado:
-        filtrado = filtrado[filtrado["materia"] == materia]
-    if grupo != "Todos" and "grupo" in filtrado:
-        filtrado = filtrado[filtrado["grupo"] == grupo]
-    if periodo != "Todos" and "periodo" in filtrado:
-        filtrado = filtrado[filtrado["periodo"] == periodo]
-    if busqueda:
-        texto = busqueda.lower().strip()
+    if filtros["carrera"] != "Todas" and "carrera" in filtrado and omitir != "carrera":
+        filtrado = filtrado[filtrado["carrera"] == filtros["carrera"]]
+    if filtros["materia"] != "Todas" and "materia" in filtrado and omitir != "materia":
+        filtrado = filtrado[filtrado["materia"] == filtros["materia"]]
+    if filtros["grupo"] != "Todos" and "grupo" in filtrado and omitir != "grupo":
+        filtrado = filtrado[filtrado["grupo"] == filtros["grupo"]]
+    if filtros["periodo"] != "Todos" and "periodo" in filtrado and omitir != "periodo":
+        filtrado = filtrado[filtrado["periodo"] == filtros["periodo"]]
+    if filtros["busqueda"] and omitir != "busqueda":
+        texto = filtros["busqueda"].lower().strip()
         nombre_completo = (
             filtrado.get("nombre", "").astype(str) + " " + filtrado.get("apellido", "").astype(str)
         ).str.lower()
@@ -704,7 +714,7 @@ def generar_pdf(df, analisis):
     pdf.set_text_color(148, 163, 184)
     pdf.cell(0, 5, f"Sistema Academico - Toma de Decisiones  |  {date.today().strftime('%d/%m/%Y')}", align="C")
 
-    return bytes(pdf.output())
+    return pdf.output(dest='S').encode('latin-1')
 
 
 def convertir_excel(df, reporte):
@@ -783,7 +793,8 @@ if not columnas_necesarias.issubset(df.columns):
     st.error("El dataset debe incluir al menos la columna 'calificacion'.")
     st.stop()
 
-df_filtrado = aplicar_filtros(df)
+filtros_seleccionados = obtener_filtros(df)
+df_filtrado = aplicar_filtros_custom(df, filtros_seleccionados)
 analisis = generar_analisis(df_filtrado)
 
 
@@ -852,33 +863,39 @@ with tab1:
 with tab2:
     st.subheader("Gráficas de desempeño")
 
-    c1, c2 = st.columns(2)
-
     if "materia" in df_filtrado:
-        prom_materia = df_filtrado.groupby("materia", as_index=False)["calificacion"].mean().sort_values("calificacion", ascending=False)
-        c1.write("Promedio por materia")
-        c1.bar_chart(prom_materia.set_index("materia"))
+        # Ignorar filtro de materia
+        df_materia = aplicar_filtros_custom(df, filtros_seleccionados, omitir="materia")
+        prom_materia = df_materia.groupby("materia", as_index=False)["calificacion"].mean().sort_values("calificacion", ascending=False)
+        st.write("Promedio por materia")
+        st.bar_chart(prom_materia.set_index("materia"), use_container_width=True)
+        st.divider()
 
     if "carrera" in df_filtrado:
-        prom_carrera = df_filtrado.groupby("carrera", as_index=False)["calificacion"].mean().sort_values("calificacion", ascending=False)
-        c2.write("Promedio por carrera")
-        c2.bar_chart(prom_carrera.set_index("carrera"))
-
-    c3, c4 = st.columns(2)
+        # Ignorar filtro de carrera
+        df_carrera = aplicar_filtros_custom(df, filtros_seleccionados, omitir="carrera")
+        prom_carrera = df_carrera.groupby("carrera", as_index=False)["calificacion"].mean().sort_values("calificacion", ascending=False)
+        st.write("Promedio por carrera")
+        st.bar_chart(prom_carrera.set_index("carrera"), use_container_width=True)
+        st.divider()
 
     if "periodo" in df_filtrado:
-        prom_periodo = df_filtrado.groupby("periodo", as_index=False)["calificacion"].mean().sort_values("periodo")
-        c3.write("Tendencia por periodo")
-        c3.line_chart(prom_periodo.set_index("periodo"))
+        # Ignorar filtro de periodo para ver tendencia completa
+        df_periodo = aplicar_filtros_custom(df, filtros_seleccionados, omitir="periodo")
+        prom_periodo = df_periodo.groupby("periodo", as_index=False)["calificacion"].mean().sort_values("periodo")
+        st.write("Tendencia por periodo")
+        st.line_chart(prom_periodo.set_index("periodo"), use_container_width=True)
+        st.divider()
 
+    # Distribución sí obedece a todos los filtros
     distribucion = pd.cut(
         df_filtrado["calificacion"],
         bins=[0, 60, 70, 80, 90, 100],
         labels=["0-59", "60-69", "70-79", "80-89", "90-100"],
         include_lowest=True,
     ).value_counts().sort_index()
-    c4.write("Distribución de calificaciones")
-    c4.bar_chart(distribucion)
+    st.write("Distribución de calificaciones")
+    st.bar_chart(distribucion, use_container_width=True)
 
 with tab3:
     st.subheader("Comparaciones entre grupos")
