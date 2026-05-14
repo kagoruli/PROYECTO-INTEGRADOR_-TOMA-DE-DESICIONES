@@ -900,8 +900,11 @@ with tab2:
 with tab3:
     st.subheader("Comparaciones entre grupos")
 
-    if "grupo" in df_filtrado:
-        comparacion_grupos = df_filtrado.groupby("grupo").agg(
+    if "grupo" in df:
+        # Ignorar el filtro de grupo para poder comparar todos los grupos
+        df_grupos = aplicar_filtros_custom(df, filtros_seleccionados, omitir="grupo")
+        
+        comparacion_grupos = df_grupos.groupby("grupo").agg(
             promedio=("calificacion", "mean"),
             minimo=("calificacion", "min"),
             maximo=("calificacion", "max"),
@@ -912,10 +915,11 @@ with tab3:
     else:
         st.info("El dataset no contiene columna de grupo.")
 
-    if {"materia", "grupo"}.issubset(df_filtrado.columns):
+    if {"materia", "grupo"}.issubset(df.columns):
         st.write("Promedio por materia y grupo")
+        df_grupos = aplicar_filtros_custom(df, filtros_seleccionados, omitir="grupo")
         tabla_pivote = pd.pivot_table(
-            df_filtrado,
+            df_grupos,
             values="calificacion",
             index="materia",
             columns="grupo",
