@@ -266,9 +266,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# =============================
-# BASE DE DATOS
-# =============================
+
 def get_connection():
     return sqlite3.connect(DB_PATH, check_same_thread=False)
 
@@ -627,7 +625,7 @@ def generar_pdf(df, analisis):
     pdf.cell(0, 6, f"Generado el {date.today().strftime('%d/%m/%Y')}  |  Sistema de Toma de Decisiones", ln=True)
     pdf.ln(14)
 
-    # ── Métricas ─────────────────────────────────────────
+    
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_text_color(100, 116, 139)
     labels = ["REGISTROS", "ESTUDIANTES", "PROMEDIO", "APROBACION"]
@@ -663,14 +661,14 @@ def generar_pdf(df, analisis):
             pdf.multi_cell(0, 6, item)
         pdf.ln(4)
 
-    # ── Resumen ejecutivo ────────────────────────────────
+    
     section("RESUMEN EJECUTIVO", [
         f"Materia con mejor desempeno: {analisis['mejor_materia']}",
         f"Materia con menor desempeno: {analisis['materia_critica']}",
         f"Registros en riesgo academico (< 70): {analisis['riesgo']:,}",
     ])
 
-    # ── Patrones detectados ──────────────────────────────
+    
     patrones = [
         "Se identifican estudiantes en riesgo cuando su calificacion es menor a 70.",
         "Se considera bajo desempeno cuando la calificacion es menor a 80.",
@@ -685,14 +683,14 @@ def generar_pdf(df, analisis):
             patrones.append(f"  Grupo con menor rendimiento: Grupo {grp} - {prom:.2f}")
     section("PATRONES DETECTADOS", patrones)
 
-    # ── Conclusiones ─────────────────────────────────────
+    
     section("CONCLUSIONES", [
         f"El promedio general del dataset es de {analisis['promedio']:.2f}.",
         f"Existen {len(riesgo_df):,} registros en riesgo academico que requieren seguimiento.",
         f"Existen {len(bajo_df):,} registros con bajo desempeno que requieren acciones preventivas.",
     ])
 
-    # ── Decisiones ───────────────────────────────────────
+    
     section("DECISIONES ACADEMICAS PROPUESTAS", [
         "Implementar tutorias para estudiantes con calificaciones menores a 70.",
         "Reforzar las materias con menor promedio mediante asesorias o ajustes de planeacion.",
@@ -700,7 +698,7 @@ def generar_pdf(df, analisis):
         "Dar seguimiento periodico a los estudiantes con bajo desempeno antes del cierre del periodo.",
     ])
 
-    # ── Pie de página ────────────────────────────────────
+    
     pdf.set_y(-18)
     pdf.set_font("Helvetica", "", 7)
     pdf.set_text_color(148, 163, 184)
@@ -1058,7 +1056,7 @@ with tab6:
 
     st.markdown(html, unsafe_allow_html=True)
 
-    # ── Botones de descarga ───────────────────────────────────
+    
     st.download_button(
         label="⬇ Descargar TXT",
         data=reporte.encode("utf-8"),
