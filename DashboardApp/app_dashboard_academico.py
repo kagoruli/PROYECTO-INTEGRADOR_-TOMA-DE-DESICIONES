@@ -33,7 +33,7 @@ st.markdown(
     .section-title {
         font-size: 1.25rem;
         font-weight: 800;
-        color: #272AF5;
+        color: #60a5fa;
         margin-top: 12px;
         margin-bottom: 8px;
     }
@@ -482,6 +482,12 @@ def limpiar_dataset_general(df):
 
     return df
 
+def limpiar_filtros():
+    st.session_state.filtro_carrera = "Todas"
+    st.session_state.filtro_materia = "Todas"
+    st.session_state.filtro_grupo = "Todos"
+    st.session_state.filtro_periodo = "Todos"
+    st.session_state.filtro_busqueda = ""
 
 def obtener_filtros(df):
     with st.sidebar:
@@ -492,11 +498,15 @@ def obtener_filtros(df):
         grupos = ["Todos"] + sorted(df["grupo"].dropna().unique().tolist()) if "grupo" in df else ["Todos"]
         periodos = ["Todos"] + sorted(df["periodo"].dropna().unique().tolist()) if "periodo" in df else ["Todos"]
 
-        carrera = st.selectbox("Carrera", carreras)
-        materia = st.selectbox("Materia", materias)
-        grupo = st.selectbox("Grupo", grupos)
-        periodo = st.selectbox("Periodo", periodos)
-        busqueda = st.text_input("Buscar alumno o matrícula")
+        carrera = st.selectbox("Carrera", carreras, key="filtro_carrera")
+        materia = st.selectbox("Materia", materias, key="filtro_materia")
+        grupo = st.selectbox("Grupo", grupos, key="filtro_grupo")
+        periodo = st.selectbox("Periodo", periodos, key="filtro_periodo")
+        busqueda = st.text_input("Buscar alumno o matrícula", key="filtro_busqueda")
+
+        # Botón de limpieza
+        st.divider()
+        st.button("Limpiar campos", on_click=limpiar_filtros, use_container_width=True)
 
     return {
         "carrera": carrera,
@@ -597,7 +607,7 @@ def crear_reporte_texto(df, analisis):
 
     lineas.append("")
     lineas.append("CONCLUSIONES")
-    lineas.append(f"- El promedio general del dataset es de {analisis['promedio']:.2f}.")
+    lineas.append(f"- El promedio general del Panel de Datos es de {analisis['promedio']:.2f}.")
     lineas.append(f"- Existen {len(riesgo_df)} registros en riesgo académico que requieren seguimiento.")
     lineas.append(f"- Existen {len(bajo_df)} registros con bajo desempeño que requieren acciones preventivas.")
     lineas.append("")
@@ -695,7 +705,7 @@ def generar_pdf(df, analisis):
 
     
     section("CONCLUSIONES", [
-        f"El promedio general del dataset es de {analisis['promedio']:.2f}.",
+        f"El promedio general del Panel de Datos es de {analisis['promedio']:.2f}.",
         f"Existen {len(riesgo_df):,} registros en riesgo academico que requieren seguimiento.",
         f"Existen {len(bajo_df):,} registros con bajo desempeno que requieren acciones preventivas.",
     ])
@@ -847,7 +857,7 @@ st.markdown(f"""
 
 
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "📋 Dataset",
+    "📋 Panel de Datos",
     "📈 Visualización",
     "⚖️ Comparaciones",
     "🔎 Consultas",
@@ -856,9 +866,9 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 ])
 
 with tab1:
-    st.subheader("Dataset consolidado y limpio")
+    st.subheader("Panel de Datos consolidado y limpio")
     st.dataframe(df_filtrado, use_container_width=True, height=420)
-    st.write("Columnas disponibles:", list(df_filtrado.columns))
+# st.write("Columnas disponibles:", list(df_filtrado.columns))
 
 with tab2:
     st.subheader("Gráficas de desempeño")
