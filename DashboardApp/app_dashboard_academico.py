@@ -1088,23 +1088,56 @@ with tab6:
     st.markdown(html, unsafe_allow_html=True)
 
     
-    st.download_button(
-        label=" Descargar TXT",
-        data=reporte.encode("utf-8"),
-        file_name="reporte_academico.txt",
-        mime="text/plain",
-    )
-    excel = convertir_excel(df_filtrado, reporte)
-    st.download_button(
-        label=" Descargar Excel",
-        data=excel,
-        file_name="reporte_academico.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-    pdf_bytes = generar_pdf(df_filtrado, analisis)
-    st.download_button(
-        label=" Descargar PDF",
-        data=pdf_bytes,
-        file_name="reporte_academico.pdf",
-        mime="application/pdf",
-    )
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.download_button(
+            label="Descargar TXT",
+            data=reporte.encode("utf-8"),
+            file_name="reporte_academico.txt",
+            mime="text/plain",
+            use_container_width=True
+        )
+    
+    with col2:
+        excel = convertir_excel(df_filtrado, reporte)
+        st.download_button(
+            label="Descargar Excel",
+            data=excel,
+            file_name="reporte_academico.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+    
+    with col3:
+        pdf_bytes = generar_pdf(df_filtrado, analisis)
+        st.download_button(
+            label="Descargar PDF",
+            data=pdf_bytes,
+            file_name="reporte_academico.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+
+    st.markdown("""
+    <style>
+    div[data-testid="column"]:nth-of-type(1) div[data-testid="stDownloadButton"] > button {
+        background-color: #2563eb !important;
+        color: white !important;
+        border: none !important;
+    }
+    div[data-testid="column"]:nth-of-type(2) div[data-testid="stDownloadButton"] > button {
+        background-color: #16a34a !important;
+        color: white !important;
+        border: none !important;
+    }
+    div[data-testid="column"]:nth-of-type(3) div[data-testid="stDownloadButton"] > button {
+        background-color: #dc2626 !important;
+        color: white !important;
+        border: none !important;
+    }
+    div[data-testid="stDownloadButton"] > button:hover {
+        opacity: 0.85;
+    }
+    </style>
+    """, unsafe_allow_html=True)
