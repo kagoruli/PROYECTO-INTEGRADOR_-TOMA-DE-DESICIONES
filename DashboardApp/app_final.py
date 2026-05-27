@@ -13,7 +13,6 @@ BAJO_DESEMPENO = 80
 
 st.set_page_config(
     page_title="Sistema Académico - Toma de Decisiones",
-    page_icon="📊",
     layout="wide",
 )
 
@@ -277,6 +276,27 @@ st.markdown(
     }
     .vega-embed details {
         display: none !important;
+    }
+
+    /* ── Deshabilitar controles de tablas ── */
+    .stDataFrame [data-testid="stDataFrameResizable"] thead {
+        pointer-events: none;
+    }
+    .stDataFrame [data-testid="column-header"] {
+        pointer-events: none !important;
+        user-select: none !important;
+    }
+    .stDataFrame [data-testid="StyledFullScreenButton"] {
+        display: none !important;
+    }
+    .stDataFrame [data-testid="stToolbar"] {
+        display: none !important;
+    }
+    .stDataFrame [data-testid="column-header"] svg {
+        display: none !important;
+    }
+    .stDataFrame [role="columnheader"] {
+        cursor: default !important;
     }
     </style>
     """,
@@ -602,14 +622,49 @@ FIN DEL REPORTE
     # En lugar de generar un PDF complejo, devolvemos el texto
     # El usuario puede guardarlo como .txt
     return reporte_texto.encode('utf-8')
-        
+
+# --- FUNCIÓN PARA GRÁFICAS MINIMALISTAS ---
+def grafica_minimalista(datos, x, y, titulo, xlabel, ylabel, color='#3b82f6'):
+    """Función para crear gráficas minimalistas"""
+    fig, ax = plt.subplots(figsize=(10, 4.5))  # Más compacto
+    
+    # Quitar bordes innecesarios
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color('#e2e8f0')
+    ax.spines['bottom'].set_color('#e2e8f0')
+    
+    # Estilo de barras/líneas simple
+    if isinstance(datos, pd.Series) or (hasattr(datos, '__len__') and not hasattr(datos, 'shape')):
+        ax.bar(range(len(datos)), datos, color=color, width=0.6, alpha=0.8)
+        ax.set_xticks(range(len(datos)))
+        ax.set_xticklabels(x, rotation=45, ha='right', fontsize=9)
+    else:
+        ax.bar(x, datos, color=color, width=0.6, alpha=0.8)
+        ax.set_xticklabels(x, rotation=45, ha='right', fontsize=9)
+    
+    # Título y etiquetas minimalistas
+    ax.set_title(titulo, fontsize=13, fontweight='500', pad=15, color='#1e293b')
+    ax.set_xlabel(xlabel, fontsize=10, color='#64748b', labelpad=8)
+    ax.set_ylabel(ylabel, fontsize=10, color='#64748b', labelpad=8)
+    
+    # Grid sutil
+    ax.grid(True, alpha=0.2, linestyle='-', linewidth=0.5, axis='y')
+    ax.set_axisbelow(True)
+    
+    # Límites y ajustes
+    if ylabel.lower() in ['calificación', 'calificacion', 'promedio']:
+        ax.set_ylim(0, 100)
+    
+    plt.tight_layout()
+    return fig
 
 # --- INTERFAZ DE USUARIO ---
 
-st.title("📊 Sistema de Análisis Académico")
+st.title(" Sistema de Análisis Académico")
 
 # --- SECCIÓN SUPERIOR: CARGA DE DATOS ---
-with st.expander("📂 CARGA DE DATOS", expanded=True):
+with st.expander(" CARGA DE DATOS", expanded=True):
     col_c1, col_c2 = st.columns([2, 1])
     with col_c1:
         archivo = st.file_uploader("Subir archivo de datos (Excel/CSV)", type=["xlsx", "xls", "csv"], label_visibility="collapsed")
@@ -633,7 +688,7 @@ if df.empty:
     st.stop()
 
 # --- SECCIÓN SUPERIOR: FILTROS ---
-with st.expander("🔍 FILTROS DEL PANEL Y BÚSQUEDA", expanded=True):
+with st.expander(" FILTROS DEL PANEL Y BÚSQUEDA", expanded=True):
     st.subheader("Búsqueda de Estudiante Específico")
     busqueda = st.text_input("Buscar por nombre, apellido o matrícula", key="filtro_busqueda", placeholder="Ejemplo: 20210001 o Juan Pérez", label_visibility="collapsed")
     
@@ -691,14 +746,14 @@ st.markdown(f"""
 </div>
 <div class="info-strip">
     <div class="info-strip-card verde">
-        <span style="font-size:1.4rem">🏆</span>
+        <span style="font-size:1.4rem"></span>
         <div>
             <div class="info-strip-label">Mejor desempeño</div>
             <div class="info-strip-value">{analisis['mejor_materia']}</div>
         </div>
     </div>
     <div class="info-strip-card ambar">
-        <span style="font-size:1.4rem">⚠️</span>
+        <span style="font-size:1.4rem"></span>
         <div>
             <div class="info-strip-label">Materia crítica</div>
             <div class="info-strip-value">{analisis['materia_critica']}</div>
@@ -709,13 +764,13 @@ st.markdown(f"""
 
 # --- PESTAÑAS DE CONTENIDO ---
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "📋 Panel de datos", "📊 Visualización", "📈 Comparaciones", 
-    "🔍 Consultas", "⚠️ Riesgo académico", "📄 Reporte final",
+    " Panel de datos", " Visualización", " Comparaciones", 
+    " Consultas", " Riesgo académico", " Reporte final",
 ])
 
 with tab1:
     st.subheader("Panel de Datos consolidado y limpio")
-    st.dataframe(df_filtrado, use_container_width=True, height=420)
+    st.dataframe(df_filtrado, use_container_width=True, height=420, hide_index=True)
 
 with tab2:
     st.subheader("Gráficas de desempeño")
@@ -724,19 +779,15 @@ with tab2:
         df_materia = aplicar_filtros_custom(df, filtros_seleccionados, omitir="materia")
         prom_materia = df_materia.groupby("materia", as_index=False)["calificacion"].mean().sort_values("calificacion", ascending=False)
         
-        fig1, ax1 = plt.subplots(figsize=(10, 5))
-        materias = prom_materia['materia'].tolist()
-        promedios = prom_materia['calificacion'].tolist()
-        
-        ax1.bar(materias, promedios, color='steelblue', edgecolor='black', alpha=0.7)
-        ax1.set_title('Promedio por Materia', fontsize=14, fontweight='bold')
-        ax1.set_xlabel('Materia', fontsize=11)
-        ax1.set_ylabel('Calificación Promedio', fontsize=11)
-        ax1.set_ylim(0, 100)
-        ax1.grid(True, alpha=0.3, linestyle='--')
-        plt.xticks(rotation=45, ha='right')
-        plt.tight_layout()
-        
+        fig1 = grafica_minimalista(
+            prom_materia['calificacion'].tolist(),
+            prom_materia['materia'].tolist(),
+            None,
+            'Promedio por Materia',
+            'Materia',
+            'Calificación Promedio',
+            color='#3b82f6'
+        )
         st.pyplot(fig1)
         plt.close(fig1)
         st.divider()
@@ -745,19 +796,15 @@ with tab2:
         df_carrera = aplicar_filtros_custom(df, filtros_seleccionados, omitir="carrera")
         prom_carrera = df_carrera.groupby("carrera", as_index=False)["calificacion"].mean().sort_values("calificacion", ascending=False)
         
-        fig2, ax2 = plt.subplots(figsize=(10, 5))
-        carreras = prom_carrera['carrera'].tolist()
-        promedios = prom_carrera['calificacion'].tolist()
-        
-        ax2.bar(carreras, promedios, color='#2ecc71', edgecolor='black', alpha=0.7)
-        ax2.set_title('Promedio por Carrera', fontsize=14, fontweight='bold')
-        ax2.set_xlabel('Carrera', fontsize=11)
-        ax2.set_ylabel('Calificación Promedio', fontsize=11)
-        ax2.set_ylim(0, 100)
-        ax2.grid(True, alpha=0.3, linestyle='--')
-        plt.xticks(rotation=45, ha='right')
-        plt.tight_layout()
-        
+        fig2 = grafica_minimalista(
+            prom_carrera['calificacion'].tolist(),
+            prom_carrera['carrera'].tolist(),
+            None,
+            'Promedio por Carrera',
+            'Carrera',
+            'Calificación Promedio',
+            color='#22c55e'
+        )
         st.pyplot(fig2)
         plt.close(fig2)
         st.divider()
@@ -766,19 +813,18 @@ with tab2:
         df_periodo = aplicar_filtros_custom(df, filtros_seleccionados, omitir="periodo")
         prom_periodo = df_periodo.groupby("periodo", as_index=False)["calificacion"].mean().sort_values("periodo")
         
-        fig3, ax3 = plt.subplots(figsize=(10, 5))
-        periodos = prom_periodo['periodo'].tolist()
-        promedios = prom_periodo['calificacion'].tolist()
-        
-        ax3.plot(periodos, promedios, marker='o', linewidth=2, markersize=8, color='#e74c3c')
-        ax3.set_title('Tendencia de Calificaciones por Período', fontsize=14, fontweight='bold')
-        ax3.set_xlabel('Período', fontsize=11)
-        ax3.set_ylabel('Calificación Promedio', fontsize=11)
+        fig3, ax3 = plt.subplots(figsize=(10, 4.5))
+        ax3.spines['top'].set_visible(False)
+        ax3.spines['right'].set_visible(False)
+        ax3.plot(prom_periodo['periodo'], prom_periodo['calificacion'], 
+                marker='o', linewidth=2, markersize=6, color='#ef4444', alpha=0.8)
+        ax3.set_title('Tendencia de Calificaciones por Período', fontsize=13, fontweight='500', pad=15, color='#1e293b')
+        ax3.set_xlabel('Período', fontsize=10, color='#64748b')
+        ax3.set_ylabel('Calificación Promedio', fontsize=10, color='#64748b')
+        ax3.grid(True, alpha=0.2, linestyle='-', axis='y')
         ax3.set_ylim(0, 100)
-        ax3.grid(True, alpha=0.3, linestyle='--')
-        plt.xticks(rotation=45, ha='right')
+        plt.xticks(rotation=45, ha='right', fontsize=9)
         plt.tight_layout()
-        
         st.pyplot(fig3)
         plt.close(fig3)
         st.divider()
@@ -790,20 +836,21 @@ with tab2:
         include_lowest=True,
     ).value_counts().sort_index()
     
-    fig4, ax4 = plt.subplots(figsize=(10, 5))
-    rangos = distribucion.index.astype(str)
-    frecuencias = distribucion.values
+    fig4, ax4 = plt.subplots(figsize=(10, 4.5))
+    ax4.spines['top'].set_visible(False)
+    ax4.spines['right'].set_visible(False)
+    colores = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981']
+    ax4.bar(range(len(distribucion)), distribucion.values, color=colores, width=0.6, alpha=0.8)
+    ax4.set_xticks(range(len(distribucion)))
+    ax4.set_xticklabels(distribucion.index, fontsize=9)
+    ax4.set_title('Distribución de Calificaciones', fontsize=13, fontweight='500', pad=15, color='#1e293b')
+    ax4.set_xlabel('Rango de Calificación', fontsize=10, color='#64748b')
+    ax4.set_ylabel('Cantidad de Estudiantes', fontsize=10, color='#64748b')
+    ax4.grid(True, alpha=0.2, linestyle='-', axis='y')
     
-    colores = ['#e74c3c', '#e67e22', '#f39c12', '#2ecc71', '#27ae60']
-    ax4.bar(rangos, frecuencias, color=colores, edgecolor='black', alpha=0.7)
-    ax4.set_title('Distribución de Calificaciones', fontsize=14, fontweight='bold')
-    ax4.set_xlabel('Rango de Calificación', fontsize=11)
-    ax4.set_ylabel('Cantidad de Estudiantes', fontsize=11)
-    ax4.grid(True, alpha=0.3, linestyle='--', axis='y')
-    
-    for i, (rango, freq) in enumerate(zip(rangos, frecuencias)):
-        ax4.text(i, freq + (max(frecuencias)*0.01), str(freq), 
-                ha='center', va='bottom', fontsize=10, fontweight='bold')
+    for i, (rango, freq) in enumerate(zip(distribucion.index, distribucion.values)):
+        ax4.text(i, freq + (max(distribucion.values)*0.01), str(freq), 
+                ha='center', va='bottom', fontsize=9, color='#475569')
     
     plt.tight_layout()
     st.pyplot(fig4)
@@ -821,18 +868,21 @@ with tab3:
             maximo=("calificacion", "max"),
             registros=("calificacion", "count"),
         ).reset_index().sort_values("promedio", ascending=False)
-        st.dataframe(comparacion_grupos, use_container_width=True)
+        st.dataframe(comparacion_grupos, use_container_width=True, hide_index=True)
         
-        fig_grupos, ax_grupos = plt.subplots(figsize=(10, 5))
+        fig_grupos, ax_grupos = plt.subplots(figsize=(10, 4.5))
+        ax_grupos.spines['top'].set_visible(False)
+        ax_grupos.spines['right'].set_visible(False)
         grupos_nombres = comparacion_grupos['grupo'].tolist()
         grupos_promedios = comparacion_grupos['promedio'].tolist()
         
-        ax_grupos.bar(grupos_nombres, grupos_promedios, color='#9b59b6', edgecolor='black', alpha=0.7)
-        ax_grupos.set_title('Promedio por Grupo', fontsize=14, fontweight='bold')
-        ax_grupos.set_xlabel('Grupo', fontsize=11)
-        ax_grupos.set_ylabel('Calificación Promedio', fontsize=11)
+        ax_grupos.bar(grupos_nombres, grupos_promedios, color='#9b59b6', width=0.6, alpha=0.8)
+        ax_grupos.set_title('Promedio por Grupo', fontsize=13, fontweight='500', pad=15, color='#1e293b')
+        ax_grupos.set_xlabel('Grupo', fontsize=10, color='#64748b')
+        ax_grupos.set_ylabel('Calificación Promedio', fontsize=10, color='#64748b')
+        ax_grupos.grid(True, alpha=0.2, linestyle='-', axis='y')
         ax_grupos.set_ylim(0, 100)
-        ax_grupos.grid(True, alpha=0.3, linestyle='--')
+        plt.xticks(rotation=45, ha='right', fontsize=9)
         plt.tight_layout()
         st.pyplot(fig_grupos)
         plt.close(fig_grupos)
@@ -884,7 +934,7 @@ with tab4:
     else:
         resultado = pd.DataFrame()
 
-    st.dataframe(resultado, use_container_width=True, height=420)
+    st.dataframe(resultado, use_container_width=True, height=420, hide_index=True)
 
 with tab5:
     st.subheader("Identificación de patrones y estudiantes en riesgo")
@@ -898,7 +948,7 @@ with tab5:
 
     if not riesgo.empty:
         st.warning("Estudiantes que requieren atención prioritaria")
-        st.dataframe(riesgo, use_container_width=True, height=350)
+        st.dataframe(riesgo, use_container_width=True, height=350, hide_index=True)
     else:
         st.success("No se detectaron estudiantes en riesgo con los filtros actuales.")
 
@@ -906,15 +956,17 @@ with tab5:
         st.write("Materias con mayor cantidad de registros en riesgo")
         riesgo_materia = riesgo.groupby("materia", as_index=False).size().sort_values("size", ascending=False)
         if not riesgo_materia.empty:
-            fig_riesgo, ax_riesgo = plt.subplots(figsize=(10, 5))
+            fig_riesgo, ax_riesgo = plt.subplots(figsize=(10, 4.5))
+            ax_riesgo.spines['top'].set_visible(False)
+            ax_riesgo.spines['right'].set_visible(False)
             materias_riesgo = riesgo_materia['materia'].tolist()[:10]
             cantidades = riesgo_materia['size'].tolist()[:10]
             
-            ax_riesgo.barh(materias_riesgo, cantidades, color='#ef4444', edgecolor='black', alpha=0.7)
-            ax_riesgo.set_title('Materias con Mayor Número de Estudiantes en Riesgo', fontsize=14, fontweight='bold')
-            ax_riesgo.set_xlabel('Cantidad de Estudiantes', fontsize=11)
-            ax_riesgo.set_ylabel('Materia', fontsize=11)
-            ax_riesgo.grid(True, alpha=0.3, linestyle='--', axis='x')
+            ax_riesgo.barh(materias_riesgo, cantidades, color='#ef4444', alpha=0.8)
+            ax_riesgo.set_title('Materias con Mayor Número de Estudiantes en Riesgo', fontsize=13, fontweight='500', pad=15, color='#1e293b')
+            ax_riesgo.set_xlabel('Cantidad de Estudiantes', fontsize=10, color='#64748b')
+            ax_riesgo.set_ylabel('Materia', fontsize=10, color='#64748b')
+            ax_riesgo.grid(True, alpha=0.2, linestyle='-', axis='x')
             plt.tight_layout()
             st.pyplot(fig_riesgo)
             plt.close(fig_riesgo)
@@ -1014,7 +1066,7 @@ with tab6:
 
     with col1:
         st.download_button(
-            label="📄 Descargar TXT",
+            label="Descargar TXT",
             data=reporte.encode("utf-8"),
             file_name="reporte_academico.txt",
             mime="text/plain",
@@ -1024,7 +1076,7 @@ with tab6:
     with col2:
         excel = convertir_excel(df_filtrado, reporte)
         st.download_button(
-            label="📊 Descargar Excel",
+            label="Descargar Excel",
             data=excel,
             file_name="reporte_academico.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1034,9 +1086,11 @@ with tab6:
     with col3:
         pdf_bytes = generar_pdf(df_filtrado, analisis)
         st.download_button(
-            label="📑 Descargar PDF",
+            label="Descargar PDF",
             data=pdf_bytes,
             file_name="reporte_academico.pdf",
             mime="application/pdf",
             use_container_width=True
         )
+
+        
