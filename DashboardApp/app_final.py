@@ -107,6 +107,49 @@ st.markdown(
         margin-top: 2px;
     }
 
+    /* ── Tabla estática personalizada ── */
+    .static-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: system-ui, -apple-system, sans-serif;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .static-table th {
+        background: #f8fafc;
+        color: #1e293b;
+        font-weight: 600;
+        font-size: 0.85rem;
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+        position: sticky;
+        top: 0;
+        background-color: #f8fafc;
+    }
+    .static-table td {
+        padding: 10px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+        font-size: 0.85rem;
+    }
+    .static-table tr:hover td {
+        background-color: #f8fafc;
+    }
+    .table-container {
+        max-height: 400px;
+        overflow-y: auto;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+    }
+    .table-container-full {
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        overflow-x: auto;
+    }
+
     /* ── Reporte final ── */
     .rpt-card {
         background: white;
@@ -244,6 +287,10 @@ st.markdown(
     body.st-dark .rpt-sub-item { color: #94a3b8 !important; }
     body.st-dark .rpt-divider { border-top-color: #334155 !important; }
     body.st-dark .rpt-footer { background: #0f172a !important; border-top-color: #334155 !important; color: #475569 !important; }
+    body.st-dark .static-table th { background: #1e293b !important; color: #f1f5f9 !important; border-bottom-color: #334155 !important; }
+    body.st-dark .static-table td { background: #0f172a !important; color: #cbd5e1 !important; border-bottom-color: #1e293b !important; }
+    body.st-dark .static-table tr:hover td { background-color: #1e293b !important; }
+    body.st-dark .table-container { border-color: #334155 !important; }
 
     /* ── Botones de descarga en AZUL CIELO ── */
     .stDownloadButton > button {
@@ -277,27 +324,6 @@ st.markdown(
     .vega-embed details {
         display: none !important;
     }
-
-    /* ── Deshabilitar controles de tablas ── */
-    .stDataFrame [data-testid="stDataFrameResizable"] thead {
-        pointer-events: none;
-    }
-    .stDataFrame [data-testid="column-header"] {
-        pointer-events: none !important;
-        user-select: none !important;
-    }
-    .stDataFrame [data-testid="StyledFullScreenButton"] {
-        display: none !important;
-    }
-    .stDataFrame [data-testid="stToolbar"] {
-        display: none !important;
-    }
-    .stDataFrame [data-testid="column-header"] svg {
-        display: none !important;
-    }
-    .stDataFrame [role="columnheader"] {
-        cursor: default !important;
-    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -305,6 +331,43 @@ st.markdown(
 
 # Configuración de pandas para usar español
 pd.set_option('display.float_format', lambda x: f'{x:.2f}')
+
+# --- FUNCIÓN PARA TABLA HTML ESTÁTICA (SIN NINGÚN CONTROL) ---
+def tabla_html_estatica(df, max_height=400, full_width=True):
+    """Genera una tabla HTML completamente estática sin ningún control interactivo"""
+    if df.empty:
+        return "<div style='text-align:center; padding:40px; color:#64748b;'>No hay datos disponibles</div>"
+    
+    # Copiar y formatear números
+    df_display = df.copy()
+    for col in df_display.select_dtypes(include=['float64', 'float32']).columns:
+        df_display[col] = df_display[col].apply(lambda x: f'{x:.2f}')
+    
+    # Generar HTML de la tabla
+    container_class = "table-container" if max_height < 999 else "table-container-full"
+    html = f'<div class="{container_class}" style="max-height:{max_height}px;">'
+    html += '<table class="static-table">'
+    
+    # Encabezados
+    html += '<thead><tr>'
+    for col in df_display.columns:
+        # Capitalizar primera letra y reemplazar guiones bajos por espacios
+        col_display = col.replace('_', ' ').title()
+        html += f'<th>{col_display}</th>'
+    html += '</tr></thead>'
+    
+    # Filas
+    html += '<tbody>'
+    for _, row in df_display.iterrows():
+        html += '<tr>'
+        for col in df_display.columns:
+            value = row[col]
+            html += f'<td>{value}</td>'
+        html += '</tr>'
+    html += '</tbody>'
+    
+    html += '</table></div>'
+    return html
 
 # --- FUNCIONES DE BASE DE DATOS Y LIMPIEZA ---
 def get_connection():
@@ -770,7 +833,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("Panel de Datos consolidado y limpio")
-    st.dataframe(df_filtrado, use_container_width=True, height=420, hide_index=True)
+    st.markdown(tabla_html_estatica(df_filtrado, 420), unsafe_allow_html=True)
 
 with tab2:
     st.subheader("Gráficas de desempeño")
@@ -868,7 +931,7 @@ with tab3:
             maximo=("calificacion", "max"),
             registros=("calificacion", "count"),
         ).reset_index().sort_values("promedio", ascending=False)
-        st.dataframe(comparacion_grupos, use_container_width=True, hide_index=True)
+        st.markdown(tabla_html_estatica(comparacion_grupos, 300), unsafe_allow_html=True)
         
         fig_grupos, ax_grupos = plt.subplots(figsize=(10, 4.5))
         ax_grupos.spines['top'].set_visible(False)
@@ -899,7 +962,7 @@ with tab3:
             columns="grupo",
             aggfunc="mean",
         )
-        st.dataframe(tabla_pivote.round(2), use_container_width=True)
+        st.markdown(tabla_html_estatica(tabla_pivote.round(2), 350), unsafe_allow_html=True)
 
 with tab4:
     st.subheader("Consultas sobre el conjunto de datos")
@@ -934,7 +997,10 @@ with tab4:
     else:
         resultado = pd.DataFrame()
 
-    st.dataframe(resultado, use_container_width=True, height=420, hide_index=True)
+    if not resultado.empty:
+        st.markdown(tabla_html_estatica(resultado, 420), unsafe_allow_html=True)
+    else:
+        st.info("No hay datos para mostrar")
 
 with tab5:
     st.subheader("Identificación de patrones y estudiantes en riesgo")
@@ -948,7 +1014,7 @@ with tab5:
 
     if not riesgo.empty:
         st.warning("Estudiantes que requieren atención prioritaria")
-        st.dataframe(riesgo, use_container_width=True, height=350, hide_index=True)
+        st.markdown(tabla_html_estatica(riesgo, 350), unsafe_allow_html=True)
     else:
         st.success("No se detectaron estudiantes en riesgo con los filtros actuales.")
 
@@ -1092,5 +1158,3 @@ with tab6:
             mime="application/pdf",
             use_container_width=True
         )
-
-        
