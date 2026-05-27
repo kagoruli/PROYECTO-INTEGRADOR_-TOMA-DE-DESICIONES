@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+import plotly.express as px
+import plotly.graph_objects as go
 
 
 
@@ -261,6 +263,179 @@ st.markdown(
     .stDownloadButton > button:hover {
         background-color: #1e3a5f !important;
     }
+
+    /* ── Sidebar mejorado ── */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    }
+    [data-testid="stSidebar"] > div:first-child {
+        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    }
+
+    /* Títulos del sidebar */
+    [data-testid="stSidebar"] h3 {
+        color: #1e293b;
+        font-weight: 700;
+        font-size: 1.1rem;
+        padding: 8px 0;
+        border-bottom: 2px solid #3b82f6;
+        margin-bottom: 16px;
+    }
+
+    /* Selectbox del sidebar */
+    [data-testid="stSidebar"] .stSelectbox label {
+        color: #475569;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    /* Checkbox del sidebar */
+    [data-testid="stSidebar"] .stCheckbox label {
+        color: #475569;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    /* Botón de limpiar filtros */
+    [data-testid="stSidebar"] button[kind="secondary"] {
+        background-color: #3b82f6 !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        padding: 0.6rem 1rem !important;
+        transition: all 0.2s !important;
+    }
+    [data-testid="stSidebar"] button[kind="secondary"]:hover {
+        background-color: #2563eb !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+    }
+
+    /* Divisores en sidebar */
+    [data-testid="stSidebar"] hr {
+        margin: 1.5rem 0;
+        border: none;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    /* File uploader en sidebar */
+    [data-testid="stSidebar"] .stFileUploader {
+        background: white;
+        border: 2px dashed #cbd5e1;
+        border-radius: 8px;
+        padding: 1rem;
+        transition: all 0.2s;
+    }
+    [data-testid="stSidebar"] .stFileUploader:hover {
+        border-color: #3b82f6;
+        background: #f1f5f9;
+    }
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       BOTONES DE EXPANDIR/COLAPSAR EN SIDEBAR - ULTRA VISIBLES
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+    /* Animaciones */
+    @keyframes superGlow {
+        0%, 100% {
+            background: linear-gradient(135deg, #ff4500 0%, #ff6347 50%, #ff8c00 100%);
+            box-shadow: 0 0 30px #ff4500, 0 0 50px #ff4500, 0 0 70px #ff4500;
+            transform: scale(1);
+        }
+        50% {
+            background: linear-gradient(135deg, #ff6347 0%, #ff8c00 50%, #ffa500 100%);
+            box-shadow: 0 0 40px #ff4500, 0 0 70px #ff4500, 0 0 100px #ff4500;
+            transform: scale(1.05);
+        }
+    }
+
+    @keyframes arrowBounce {
+        0%, 100% { transform: translateX(0); }
+        50% { transform: translateX(8px); }
+    }
+
+    /* Contenedor del expander cuando está colapsado */
+    [data-testid="stSidebar"] details[open="false"],
+    [data-testid="stSidebar"] details:not([open]) {
+        border: 5px solid #ff4500 !important;
+        border-radius: 16px !important;
+        background: linear-gradient(135deg, #ffe5e0 0%, #fff5f0 100%) !important;
+        padding: 4px !important;
+        margin: 16px 0 !important;
+        box-shadow: 0 0 30px rgba(255, 69, 0, 0.6) !important;
+    }
+
+    /* Header/summary del expander (el botón clickeable) */
+    [data-testid="stSidebar"] summary,
+    [data-testid="stSidebar"] .streamlit-expanderHeader,
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary,
+    [data-testid="stSidebar"] [data-testid="stExpanderHeader"],
+    [data-testid="stSidebar"] button[kind="header"] {
+        background: linear-gradient(135deg, #ff4500 0%, #ff6347 50%, #ff8c00 100%) !important;
+        color: white !important;
+        border-radius: 12px !important;
+        padding: 24px 20px !important;
+        box-shadow: 0 0 30px #ff4500, 0 0 50px #ff4500, 0 8px 25px rgba(255, 69, 0, 0.5) !important;
+        border: 4px solid #ffffff !important;
+        font-weight: 900 !important;
+        font-size: 1.1rem !important;
+        min-height: 80px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        position: relative !important;
+        animation: superGlow 2s infinite !important;
+    }
+
+    [data-testid="stSidebar"] summary:hover,
+    [data-testid="stSidebar"] .streamlit-expanderHeader:hover,
+    [data-testid="stSidebar"] button[kind="header"]:hover {
+        background: linear-gradient(135deg, #ff6347 0%, #ff8c00 50%, #ffa500 100%) !important;
+        box-shadow: 0 0 40px #ff4500, 0 0 70px #ff4500, 0 12px 35px rgba(255, 69, 0, 0.7) !important;
+        transform: scale(1.08) !important;
+    }
+
+    /* Iconos del expander (flechas >>) */
+    [data-testid="stSidebar"] summary svg,
+    [data-testid="stSidebar"] .streamlit-expanderHeader svg,
+    [data-testid="stSidebar"] button[kind="header"] svg {
+        width: 50px !important;
+        height: 50px !important;
+        color: white !important;
+        filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6)) !important;
+        animation: arrowBounce 1s infinite !important;
+    }
+
+    /* Texto adicional en el header del expander */
+    [data-testid="stSidebar"] summary::before,
+    [data-testid="stSidebar"] .streamlit-expanderHeader::before {
+        content: "▶▶▶ " !important;
+        font-size: 1.3rem !important;
+        margin-right: 12px !important;
+        animation: arrowBounce 1s infinite !important;
+    }
+
+    /* Mensaje cuando está colapsado */
+    [data-testid="stSidebar"] details:not([open]) summary::after {
+        content: " ◀ CLIC PARA ABRIR" !important;
+        font-size: 0.85rem !important;
+        font-weight: 800 !important;
+        background: white !important;
+        color: #ff4500 !important;
+        padding: 6px 14px !important;
+        border-radius: 20px !important;
+        margin-left: 12px !important;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.3) !important;
+        animation: textPulse 1.5s infinite !important;
+    }
+
+    @keyframes textPulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.1); }
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -489,9 +664,11 @@ def limpiar_filtros():
     st.session_state.filtro_periodo = "Todos"
     st.session_state.filtro_busqueda = ""
 
-def obtener_filtros(df):
+def obtener_filtros_sidebar(df):
+    """Obtiene los filtros del sidebar (sin búsqueda)"""
     with st.sidebar:
-        st.header("Filtros")
+        st.markdown("### Filtros")
+        st.markdown("")
 
         carreras = ["Todas"] + sorted(df["carrera"].dropna().unique().tolist()) if "carrera" in df else ["Todas"]
         materias = ["Todas"] + sorted(df["materia"].dropna().unique().tolist()) if "materia" in df else ["Todas"]
@@ -499,21 +676,23 @@ def obtener_filtros(df):
         periodos = ["Todos"] + sorted(df["periodo"].dropna().unique().tolist()) if "periodo" in df else ["Todos"]
 
         carrera = st.selectbox("Carrera", carreras, key="filtro_carrera")
+        st.markdown("")
         materia = st.selectbox("Materia", materias, key="filtro_materia")
+        st.markdown("")
         grupo = st.selectbox("Grupo", grupos, key="filtro_grupo")
+        st.markdown("")
         periodo = st.selectbox("Periodo", periodos, key="filtro_periodo")
-        busqueda = st.text_input("Buscar alumno o matrícula", key="filtro_busqueda")
 
         # Botón de limpieza
-        st.divider()
-        st.button("Limpiar campos", on_click=limpiar_filtros, use_container_width=True)
+        st.markdown("---")
+        if st.button("Limpiar filtros", on_click=limpiar_filtros, use_container_width=True):
+            st.rerun()
 
     return {
         "carrera": carrera,
         "materia": materia,
         "grupo": grupo,
         "periodo": periodo,
-        "busqueda": busqueda
     }
 
 
@@ -569,6 +748,34 @@ def generar_analisis(df):
         "mejor_materia": mejor_materia,
         "materia_critica": materia_critica,
     }
+
+
+def analizar_estudiantes_en_riesgo(df):
+    """
+    Analiza estudiantes agrupados por matrícula para identificar:
+    - Estudiantes con 1+ materias en riesgo
+    - Estudiantes con 3+ materias en riesgo (crítico)
+    """
+    if df.empty or "matricula" not in df or "materia" not in df:
+        return pd.DataFrame(), pd.DataFrame()
+
+    # Filtrar registros en riesgo
+    riesgo_df = df[df["calificacion"] < RIESGO_CALIFICACION].copy()
+
+    if riesgo_df.empty:
+        return pd.DataFrame(), pd.DataFrame()
+
+    # Agrupar por estudiante y contar materias en riesgo
+    estudiantes_riesgo = riesgo_df.groupby(["matricula", "nombre", "apellido"], as_index=False).agg(
+        materias_en_riesgo=("materia", "nunique"),
+        promedio_riesgo=("calificacion", "mean"),
+        materias_detalle=("materia", lambda x: ", ".join(sorted(set(x))))
+    ).sort_values("materias_en_riesgo", ascending=False)
+
+    # Filtrar estudiantes con 3+ materias en riesgo (CRÍTICO)
+    criticos = estudiantes_riesgo[estudiantes_riesgo["materias_en_riesgo"] >= 3].copy()
+
+    return estudiantes_riesgo, criticos
 
 
 def crear_reporte_texto(df, analisis):
@@ -724,7 +931,7 @@ def generar_pdf(df, analisis):
     pdf.set_text_color(148, 163, 184)
     pdf.cell(0, 5, f"Sistema Academico - Toma de Decisiones  |  {date.today().strftime('%d/%m/%Y')}", align="C")
 
-    return pdf.output(dest='S').encode('latin-1')
+    return bytes(pdf.output())
 
 
 def convertir_excel(df, reporte):
@@ -774,13 +981,31 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
-st.title("📊 Sistema de Análisis Académico")
-st.caption("Consolidación, limpieza, análisis, visualización y reporte para toma de decisiones académicas")
+# Header con buscador en la derecha
+col_titulo, col_busqueda = st.columns([3, 1])
+with col_titulo:
+    st.title("📊 Sistema de Análisis Académico")
+    st.caption("Consolidación, limpieza, análisis, visualización y reporte para toma de decisiones académicas")
+with col_busqueda:
+    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+    busqueda = st.text_input(
+        "🔍 Buscar",
+        placeholder="Nombre, apellido o matrícula...",
+        key="filtro_busqueda",
+        label_visibility="collapsed"
+    )
 
 with st.sidebar:
-    st.header("Carga de datos")
-    archivo = st.file_uploader("Sube archivo Excel o CSV", type=["xlsx", "xls", "csv"])
-    usar_db = st.checkbox("Usar base SQLite existente", value=True)
+    st.markdown("### Carga de datos")
+    st.markdown("")
+    archivo = st.file_uploader(
+        "Sube un archivo",
+        type=["xlsx", "xls", "csv"],
+        help="Formatos soportados: Excel (.xlsx, .xls) o CSV"
+    )
+    st.markdown("")
+    usar_db = st.checkbox("Usar base de datos SQLite existente", value=True)
+    st.markdown("---")
 
 if archivo is not None:
     df = cargar_archivo_subido(archivo)
@@ -803,9 +1028,75 @@ if not columnas_necesarias.issubset(df.columns):
     st.error("El dataset debe incluir al menos la columna 'calificacion'.")
     st.stop()
 
-filtros_seleccionados = obtener_filtros(df)
+# Obtener filtros del sidebar y combinar con búsqueda
+filtros_sidebar = obtener_filtros_sidebar(df)
+filtros_seleccionados = {**filtros_sidebar, "busqueda": busqueda}
 df_filtrado = aplicar_filtros_custom(df, filtros_seleccionados)
 analisis = generar_analisis(df_filtrado)
+
+
+# Función para popup de detalle de mejor materia
+@st.dialog("🏆 Detalle de Mejor Desempeño")
+def mostrar_detalle_mejor_materia():
+    if "materia" in df_filtrado:
+        por_materia = df_filtrado.groupby("materia").agg(
+            promedio=("calificacion", "mean"),
+            total_estudiantes=("matricula", "nunique"),
+            registros=("calificacion", "count"),
+            nota_maxima=("calificacion", "max"),
+            nota_minima=("calificacion", "min")
+        ).reset_index().sort_values("promedio", ascending=False)
+
+        mejor = por_materia.iloc[0]
+        st.markdown(f"### {mejor['materia']}")
+        st.metric("Promedio", f"{mejor['promedio']:.2f}")
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Estudiantes", int(mejor['total_estudiantes']))
+        col2.metric("Nota Máxima", f"{mejor['nota_maxima']:.1f}")
+        col3.metric("Nota Mínima", f"{mejor['nota_minima']:.1f}")
+
+        st.divider()
+        st.write("**Top 5 materias con mejor desempeño:**")
+        top5 = por_materia.head(5).rename(columns={
+            "materia": "Materia",
+            "promedio": "Promedio",
+            "total_estudiantes": "Estudiantes",
+            "registros": "Registros"
+        })
+        top5["Promedio"] = top5["Promedio"].round(2)
+        st.dataframe(top5[["Materia", "Promedio", "Estudiantes"]], hide_index=True, use_container_width=True)
+
+
+# Función para popup de detalle de materia crítica
+@st.dialog("⚠️ Detalle de Materia Crítica")
+def mostrar_detalle_materia_critica():
+    if "materia" in df_filtrado:
+        por_materia = df_filtrado.groupby("materia").agg(
+            promedio=("calificacion", "mean"),
+            total_estudiantes=("matricula", "nunique"),
+            estudiantes_riesgo=("calificacion", lambda x: (x < RIESGO_CALIFICACION).sum()),
+            registros=("calificacion", "count"),
+        ).reset_index().sort_values("promedio", ascending=True)
+
+        critica = por_materia.iloc[0]
+        st.markdown(f"### {critica['materia']}")
+        st.metric("Promedio", f"{critica['promedio']:.2f}")
+
+        col1, col2 = st.columns(2)
+        col1.metric("Estudiantes", int(critica['total_estudiantes']))
+        col2.metric("En Riesgo", int(critica['estudiantes_riesgo']))
+
+        st.divider()
+        st.write("**Top 5 materias con menor desempeño:**")
+        bottom5 = por_materia.head(5).rename(columns={
+            "materia": "Materia",
+            "promedio": "Promedio",
+            "total_estudiantes": "Estudiantes",
+            "estudiantes_riesgo": "En Riesgo"
+        })
+        bottom5["Promedio"] = bottom5["Promedio"].round(2)
+        st.dataframe(bottom5[["Materia", "Promedio", "Estudiantes", "En Riesgo"]], hide_index=True, use_container_width=True)
 
 
 st.markdown('<div class="section-title">Resumen general</div>', unsafe_allow_html=True)
@@ -837,23 +1128,35 @@ st.markdown(f"""
         <div class="kpi-sub">calificación &lt; 70</div>
     </div>
 </div>
-<div class="info-strip">
-    <div class="info-strip-card verde">
+""", unsafe_allow_html=True)
+
+# Botones para abrir popups de detalle
+col_mejor, col_critica = st.columns(2)
+with col_mejor:
+    st.markdown(f"""
+    <div class="info-strip-card verde" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 13px 18px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(15, 23, 42, .04); border-left: 5px solid #22c55e;">
         <span style="font-size:1.4rem">🏆</span>
         <div>
-            <div class="info-strip-label">Mejor desempeño</div>
-            <div class="info-strip-value">{analisis['mejor_materia']}</div>
+            <div style="font-size: 0.69rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.07em;">Mejor desempeño</div>
+            <div style="font-size: 0.97rem; font-weight: 700; color: #0f172a; margin-top: 2px;">{analisis['mejor_materia']}</div>
         </div>
     </div>
-    <div class="info-strip-card ambar">
+    """, unsafe_allow_html=True)
+    if st.button("📊 Ver detalle completo", key="btn_mejor", use_container_width=True):
+        mostrar_detalle_mejor_materia()
+
+with col_critica:
+    st.markdown(f"""
+    <div class="info-strip-card ambar" style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 13px 18px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(15, 23, 42, .04); border-left: 5px solid #f59e0b;">
         <span style="font-size:1.4rem">⚠️</span>
         <div>
-            <div class="info-strip-label">Materia crítica</div>
-            <div class="info-strip-value">{analisis['materia_critica']}</div>
+            <div style="font-size: 0.69rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.07em;">Materia crítica</div>
+            <div style="font-size: 0.97rem; font-weight: 700; color: #0f172a; margin-top: 2px;">{analisis['materia_critica']}</div>
         </div>
     </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+    if st.button("⚠️ Ver detalle completo", key="btn_critica", use_container_width=True):
+        mostrar_detalle_materia_critica()
 
 
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
@@ -867,8 +1170,33 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("Panel de Datos consolidado y limpio")
-    st.dataframe(df_filtrado, use_container_width=True, height=420)
-# st.write("Columnas disponibles:", list(df_filtrado.columns))
+
+    # Preparar columnas limpias para mostrar
+    df_display = df_filtrado.copy()
+
+    # Renombrar columnas a español con formato título
+    column_mapping = {
+        "matricula": "Matrícula",
+        "nombre": "Nombre",
+        "apellido": "Apellido",
+        "carrera": "Carrera",
+        "materia": "Materia",
+        "periodo": "Periodo",
+        "grupo": "Grupo",
+        "calificacion": "Calificación"
+    }
+    df_display = df_display.rename(columns={k: v for k, v in column_mapping.items() if k in df_display.columns})
+
+    # Mostrar información de total de registros
+    total_registros = len(df_display)
+    st.info(f"📊 Mostrando {total_registros:,} registros totales")
+
+    st.dataframe(
+        df_display,
+        use_container_width=True,
+        hide_index=True,
+        height=420
+    )
 
 with tab2:
     st.subheader("Gráficas de desempeño")
@@ -877,24 +1205,70 @@ with tab2:
         # Ignorar filtro de materia
         df_materia = aplicar_filtros_custom(df, filtros_seleccionados, omitir="materia")
         prom_materia = df_materia.groupby("materia", as_index=False)["calificacion"].mean().sort_values("calificacion", ascending=False)
-        st.write("Promedio por materia")
-        st.bar_chart(prom_materia.set_index("materia"), use_container_width=True)
+
+        st.write("📚 Promedio por materia")
+        fig_materia = px.bar(
+            prom_materia,
+            x="materia",
+            y="calificacion",
+            labels={"materia": "Materia", "calificacion": "Promedio"},
+            color="calificacion",
+            color_continuous_scale="Blues"
+        )
+        fig_materia.update_layout(
+            showlegend=False,
+            xaxis_title="Materia",
+            yaxis_title="Promedio de Calificación",
+            height=400
+        )
+        fig_materia.update_traces(texttemplate='%{y:.1f}', textposition='outside')
+        st.plotly_chart(fig_materia, use_container_width=True, config={'staticPlot': True})
         st.divider()
 
     if "carrera" in df_filtrado:
         # Ignorar filtro de carrera
         df_carrera = aplicar_filtros_custom(df, filtros_seleccionados, omitir="carrera")
         prom_carrera = df_carrera.groupby("carrera", as_index=False)["calificacion"].mean().sort_values("calificacion", ascending=False)
-        st.write("Promedio por carrera")
-        st.bar_chart(prom_carrera.set_index("carrera"), use_container_width=True)
+
+        st.write("🎓 Promedio por carrera")
+        fig_carrera = px.bar(
+            prom_carrera,
+            x="carrera",
+            y="calificacion",
+            labels={"carrera": "Carrera", "calificacion": "Promedio"},
+            color="calificacion",
+            color_continuous_scale="Greens"
+        )
+        fig_carrera.update_layout(
+            showlegend=False,
+            xaxis_title="Carrera",
+            yaxis_title="Promedio de Calificación",
+            height=400
+        )
+        fig_carrera.update_traces(texttemplate='%{y:.1f}', textposition='outside')
+        st.plotly_chart(fig_carrera, use_container_width=True, config={'staticPlot': True})
         st.divider()
 
     if "periodo" in df_filtrado:
         # Ignorar filtro de periodo para ver tendencia completa
         df_periodo = aplicar_filtros_custom(df, filtros_seleccionados, omitir="periodo")
         prom_periodo = df_periodo.groupby("periodo", as_index=False)["calificacion"].mean().sort_values("periodo")
-        st.write("Tendencia por periodo")
-        st.line_chart(prom_periodo.set_index("periodo"), use_container_width=True)
+
+        st.write("📈 Tendencia por periodo")
+        fig_periodo = px.line(
+            prom_periodo,
+            x="periodo",
+            y="calificacion",
+            labels={"periodo": "Periodo", "calificacion": "Promedio"},
+            markers=True
+        )
+        fig_periodo.update_layout(
+            xaxis_title="Periodo",
+            yaxis_title="Promedio de Calificación",
+            height=400
+        )
+        fig_periodo.update_traces(line_color='#3b82f6', line_width=3)
+        st.plotly_chart(fig_periodo, use_container_width=True, config={'staticPlot': True})
         st.divider()
 
     # Distribución sí obedece a todos los filtros
@@ -904,8 +1278,25 @@ with tab2:
         labels=["0-59", "60-69", "70-79", "80-89", "90-100"],
         include_lowest=True,
     ).value_counts().sort_index()
-    st.write("Distribución de calificaciones")
-    st.bar_chart(distribucion, use_container_width=True)
+
+    st.write("📊 Distribución de calificaciones")
+    dist_df = pd.DataFrame({"Rango": distribucion.index, "Cantidad": distribucion.values})
+    fig_dist = px.bar(
+        dist_df,
+        x="Rango",
+        y="Cantidad",
+        labels={"Rango": "Rango de Calificación", "Cantidad": "Número de Registros"},
+        color="Cantidad",
+        color_continuous_scale="Purples"
+    )
+    fig_dist.update_layout(
+        showlegend=False,
+        xaxis_title="Rango de Calificación",
+        yaxis_title="Cantidad de Registros",
+        height=400
+    )
+    fig_dist.update_traces(texttemplate='%{y}', textposition='outside')
+    st.plotly_chart(fig_dist, use_container_width=True, config={'staticPlot': True})
 
 with tab3:
     st.subheader("Comparaciones entre grupos")
@@ -913,20 +1304,51 @@ with tab3:
     if "grupo" in df:
         # Ignorar el filtro de grupo para poder comparar todos los grupos
         df_grupos = aplicar_filtros_custom(df, filtros_seleccionados, omitir="grupo")
-        
+
         comparacion_grupos = df_grupos.groupby("grupo").agg(
             promedio=("calificacion", "mean"),
             minimo=("calificacion", "min"),
             maximo=("calificacion", "max"),
             registros=("calificacion", "count"),
         ).reset_index().sort_values("promedio", ascending=False)
-        st.dataframe(comparacion_grupos, use_container_width=True)
-        st.bar_chart(comparacion_grupos.set_index("grupo")[["promedio"]])
+
+        # Renombrar columnas a español
+        comparacion_grupos = comparacion_grupos.rename(columns={
+            "grupo": "Grupo",
+            "promedio": "Promedio",
+            "minimo": "Mínimo",
+            "maximo": "Máximo",
+            "registros": "Registros"
+        })
+        comparacion_grupos["Promedio"] = comparacion_grupos["Promedio"].round(2)
+        comparacion_grupos["Mínimo"] = comparacion_grupos["Mínimo"].round(2)
+        comparacion_grupos["Máximo"] = comparacion_grupos["Máximo"].round(2)
+
+        st.dataframe(comparacion_grupos, use_container_width=True, hide_index=True)
+
+        # Gráfica de comparación de promedios
+        st.write("📊 Comparación de promedios por grupo")
+        fig_grupos = px.bar(
+            comparacion_grupos,
+            x="Grupo",
+            y="Promedio",
+            labels={"Grupo": "Grupo", "Promedio": "Promedio de Calificación"},
+            color="Promedio",
+            color_continuous_scale="Teal"
+        )
+        fig_grupos.update_layout(
+            showlegend=False,
+            xaxis_title="Grupo",
+            yaxis_title="Promedio de Calificación",
+            height=400
+        )
+        fig_grupos.update_traces(texttemplate='%{y:.1f}', textposition='outside')
+        st.plotly_chart(fig_grupos, use_container_width=True, config={'staticPlot': True})
     else:
         st.info("El dataset no contiene columna de grupo.")
 
     if {"materia", "grupo"}.issubset(df.columns):
-        st.write("Promedio por materia y grupo")
+        st.write("📋 Promedio por materia y grupo")
         df_grupos = aplicar_filtros_custom(df, filtros_seleccionados, omitir="grupo")
         tabla_pivote = pd.pivot_table(
             df_grupos,
@@ -959,10 +1381,16 @@ with tab4:
         resultado = df_filtrado.sort_values("calificacion", ascending=True).head(10)
     elif opcion == "Promedio por materia" and "materia" in df_filtrado:
         resultado = df_filtrado.groupby("materia", as_index=False)["calificacion"].mean().sort_values("calificacion")
+        resultado = resultado.rename(columns={"materia": "Materia", "calificacion": "Promedio"})
+        resultado["Promedio"] = resultado["Promedio"].round(2)
     elif opcion == "Promedio por carrera" and "carrera" in df_filtrado:
         resultado = df_filtrado.groupby("carrera", as_index=False)["calificacion"].mean().sort_values("calificacion")
+        resultado = resultado.rename(columns={"carrera": "Carrera", "calificacion": "Promedio"})
+        resultado["Promedio"] = resultado["Promedio"].round(2)
     elif opcion == "Promedio por grupo" and "grupo" in df_filtrado:
         resultado = df_filtrado.groupby("grupo", as_index=False)["calificacion"].mean().sort_values("calificacion")
+        resultado = resultado.rename(columns={"grupo": "Grupo", "calificacion": "Promedio"})
+        resultado["Promedio"] = resultado["Promedio"].round(2)
     elif opcion == "Estudiantes con calificación menor a 70":
         resultado = df_filtrado[df_filtrado["calificacion"] < RIESGO_CALIFICACION].sort_values("calificacion")
     elif opcion == "Estudiantes con bajo desempeño menor a 80":
@@ -970,29 +1398,127 @@ with tab4:
     else:
         resultado = pd.DataFrame()
 
-    st.dataframe(resultado, use_container_width=True, height=420)
+    # Preparar resultado para mostrar
+    if not resultado.empty:
+        resultado_display = resultado.copy()
+
+        # Renombrar columnas si no están ya renombradas
+        column_mapping = {
+            "matricula": "Matrícula",
+            "nombre": "Nombre",
+            "apellido": "Apellido",
+            "carrera": "Carrera",
+            "materia": "Materia",
+            "periodo": "Periodo",
+            "grupo": "Grupo",
+            "calificacion": "Calificación"
+        }
+        resultado_display = resultado_display.rename(columns={k: v for k, v in column_mapping.items() if k in resultado_display.columns})
+
+        # Limitar registros si hay muchos
+        total = len(resultado_display)
+        if total > 200:
+            st.info(f"Mostrando los primeros 200 registros de {total:,} totales")
+            resultado_display = resultado_display.head(200)
+
+        st.dataframe(resultado_display, use_container_width=True, hide_index=True, height=420)
+    else:
+        st.warning("No hay resultados para esta consulta con los filtros actuales.")
 
 with tab5:
     st.subheader("Identificación de patrones y estudiantes en riesgo")
 
-    riesgo = df_filtrado[df_filtrado["calificacion"] < RIESGO_CALIFICACION].sort_values("calificacion")
-    bajo = df_filtrado[df_filtrado["calificacion"] < BAJO_DESEMPENO].sort_values("calificacion")
+    # Análisis por estudiante (no por registro individual)
+    estudiantes_riesgo, estudiantes_criticos = analizar_estudiantes_en_riesgo(df_filtrado)
 
-    r1, r2 = st.columns(2)
-    r1.metric("Riesgo académico < 70", len(riesgo))
-    r2.metric("Bajo desempeño < 80", len(bajo))
+    riesgo_registros = df_filtrado[df_filtrado["calificacion"] < RIESGO_CALIFICACION]
+    bajo = df_filtrado[df_filtrado["calificacion"] < BAJO_DESEMPENO]
 
-    if not riesgo.empty:
-        st.warning("Estudiantes que requieren atención prioritaria")
-        st.dataframe(riesgo, use_container_width=True, height=350)
+    # Métricas principales
+    r1, r2, r3 = st.columns(3)
+    r1.metric("Estudiantes en riesgo", len(estudiantes_riesgo))
+    r2.metric("🚨 CRÍTICO (3+ materias)", len(estudiantes_criticos))
+    r3.metric("Bajo desempeño < 80", len(bajo))
+
+    # ALERTA ESPECIAL para estudiantes críticos (3+ materias en riesgo)
+    if not estudiantes_criticos.empty:
+        st.error("⚠️ ALERTA CRÍTICA: Estudiantes con 3 o más materias en riesgo")
+        st.markdown("Estos estudiantes requieren **intervención inmediata** del área de tutoría académica.")
+
+        # Crear columnas limpias para mostrar
+        criticos_display = estudiantes_criticos.copy()
+        criticos_display = criticos_display.rename(columns={
+            "matricula": "Matrícula",
+            "nombre": "Nombre",
+            "apellido": "Apellido",
+            "materias_en_riesgo": "Materias en Riesgo",
+            "promedio_riesgo": "Promedio en Materias Reprobadas",
+            "materias_detalle": "Materias"
+        })
+        criticos_display["Promedio en Materias Reprobadas"] = criticos_display["Promedio en Materias Reprobadas"].round(2)
+
+        st.dataframe(
+            criticos_display,
+            use_container_width=True,
+            hide_index=True,
+            height=min(300, len(criticos_display) * 35 + 38)
+        )
+        st.divider()
+
+    # Mostrar TODOS los estudiantes con 1+ materias en riesgo
+    if not estudiantes_riesgo.empty:
+        st.warning(f"📋 Estudiantes con al menos 1 materia en riesgo ({len(estudiantes_riesgo)} estudiantes)")
+
+        # Preparar datos limpios
+        riesgo_display = estudiantes_riesgo.copy()
+        riesgo_display = riesgo_display.rename(columns={
+            "matricula": "Matrícula",
+            "nombre": "Nombre",
+            "apellido": "Apellido",
+            "materias_en_riesgo": "Materias en Riesgo",
+            "promedio_riesgo": "Promedio en Materias Reprobadas",
+            "materias_detalle": "Materias"
+        })
+        riesgo_display["Promedio en Materias Reprobadas"] = riesgo_display["Promedio en Materias Reprobadas"].round(2)
+
+        # Limitar a 100 registros para no sobrecargar la vista
+        if len(riesgo_display) > 100:
+            st.info(f"Mostrando los primeros 100 estudiantes de {len(riesgo_display)} totales")
+            riesgo_display = riesgo_display.head(100)
+
+        st.dataframe(
+            riesgo_display,
+            use_container_width=True,
+            hide_index=True,
+            height=400
+        )
     else:
-        st.success("No se detectaron estudiantes en riesgo con los filtros actuales.")
+        st.success("✅ No se detectaron estudiantes en riesgo con los filtros actuales.")
 
-    if "materia" in df_filtrado:
-        st.write("Materias con mayor cantidad de registros en riesgo")
-        riesgo_materia = riesgo.groupby("materia", as_index=False).size().sort_values("size", ascending=False)
+    # Gráfica de materias con más estudiantes en riesgo
+    if not riesgo_registros.empty and "materia" in df_filtrado:
+        st.write("📊 Materias con mayor cantidad de estudiantes en riesgo")
+        riesgo_materia = riesgo_registros.groupby("materia", as_index=False).agg(
+            estudiantes=("matricula", "nunique")
+        ).sort_values("estudiantes", ascending=False).head(10)
+
         if not riesgo_materia.empty:
-            st.bar_chart(riesgo_materia.set_index("materia"))
+            fig = px.bar(
+                riesgo_materia,
+                x="materia",
+                y="estudiantes",
+                labels={"materia": "Materia", "estudiantes": "Estudiantes en Riesgo"},
+                color="estudiantes",
+                color_continuous_scale="Reds"
+            )
+            fig.update_layout(
+                showlegend=False,
+                xaxis_title="Materia",
+                yaxis_title="Número de Estudiantes",
+                height=400
+            )
+            fig.update_traces(texttemplate='%{y}', textposition='outside')
+            st.plotly_chart(fig, use_container_width=True, config={'staticPlot': True})
 
 with tab6:
     from datetime import date as _date
