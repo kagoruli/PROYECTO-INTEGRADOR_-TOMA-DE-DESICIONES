@@ -436,7 +436,173 @@ st.markdown(
         0%, 100% { opacity: 1; transform: scale(1); }
         50% { opacity: 0.8; transform: scale(1.1); }
     }
+
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       TRADUCCIÓN DE MENÚS DE TABLAS AL ESPAÑOL
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+    /* Ocultar texto en inglés y mostrar español usando CSS */
+    div[role="menuitem"], button[role="menuitem"] {
+        position: relative !important;
+    }
+
+    /* Sort ascending */
+    div[role="menuitem"]:has(span:first-child:only-child):first-child span:only-child {
+        font-size: 0 !important;
+    }
+    div[role="menuitem"]:has(span:first-child:only-child):first-child::after {
+        content: "Ordenar ascendente" !important;
+        font-size: 14px !important;
+    }
+
+    /* Sort descending */
+    div[role="menuitem"]:has(span:first-child:only-child):nth-child(2) span:only-child {
+        font-size: 0 !important;
+    }
+    div[role="menuitem"]:has(span:first-child:only-child):nth-child(2)::after {
+        content: "Ordenar descendente" !important;
+        font-size: 14px !important;
+    }
+
+    /* Format */
+    div[role="menuitem"]:has(span:first-child:only-child):nth-child(3) span:only-child {
+        font-size: 0 !important;
+    }
+    div[role="menuitem"]:has(span:first-child:only-child):nth-child(3)::after {
+        content: "Formato" !important;
+        font-size: 14px !important;
+    }
+
+    /* Autosize */
+    div[role="menuitem"]:has(span:first-child:only-child):nth-child(4) span:only-child {
+        font-size: 0 !important;
+    }
+    div[role="menuitem"]:has(span:first-child:only-child):nth-child(4)::after {
+        content: "Ajustar automáticamente" !important;
+        font-size: 14px !important;
+    }
+
+    /* Pin column */
+    div[role="menuitem"]:has(span:first-child:only-child):nth-child(5) span:only-child {
+        font-size: 0 !important;
+    }
+    div[role="menuitem"]:has(span:first-child:only-child):nth-child(5)::after {
+        content: "Fijar columna" !important;
+        font-size: 14px !important;
+    }
+
+    /* Hide column */
+    div[role="menuitem"]:has(span:first-child:only-child):nth-child(6) span:only-child {
+        font-size: 0 !important;
+    }
+    div[role="menuitem"]:has(span:first-child:only-child):nth-child(6)::after {
+        content: "Ocultar columna" !important;
+        font-size: 14px !important;
+    }
     </style>
+
+    <script>
+    // Diccionario de traducciones
+    const TRADUCCIONES = {
+        'Sort ascending': 'Ordenar ascendente',
+        'Sort descending': 'Ordenar descendente',
+        'Format': 'Formato',
+        'Autosize': 'Ajustar automáticamente',
+        'Pin column': 'Fijar columna',
+        'Unpin column': 'Desfijar columna',
+        'Hide column': 'Ocultar columna',
+        'Show column': 'Mostrar columna',
+        'Search': 'Buscar'
+    };
+
+    // Función principal de traducción
+    function traducirElemento(elemento) {
+        if (!elemento) return false;
+
+        // Obtener todo el texto del elemento
+        const textoCompleto = elemento.textContent?.trim();
+
+        // Verificar si necesita traducción
+        if (textoCompleto && TRADUCCIONES[textoCompleto]) {
+            // Buscar el span interno o usar el elemento directamente
+            const spans = elemento.querySelectorAll('span');
+            if (spans.length > 0) {
+                spans.forEach(span => {
+                    if (span.textContent.trim() === textoCompleto) {
+                        span.textContent = TRADUCCIONES[textoCompleto];
+                    }
+                });
+            } else {
+                elemento.textContent = TRADUCCIONES[textoCompleto];
+            }
+            return true;
+        }
+        return false;
+    }
+
+    // Traducir todos los elementos de menú
+    function traducirMenus() {
+        // Buscar todos los posibles elementos de menú
+        const selectores = [
+            'div[role="menuitem"]',
+            'button[role="menuitem"]',
+            '[role="menuitem"] span',
+            '.gdg-menu-item',
+            '[class*="menu"] [role="menuitem"]'
+        ];
+
+        selectores.forEach(selector => {
+            document.querySelectorAll(selector).forEach(elemento => {
+                traducirElemento(elemento);
+            });
+        });
+
+        // Traducir tooltips y atributos
+        Object.keys(TRADUCCIONES).forEach(textoIngles => {
+            document.querySelectorAll(`[title="${textoIngles}"]`).forEach(el => {
+                el.setAttribute('title', TRADUCCIONES[textoIngles]);
+            });
+            document.querySelectorAll(`[aria-label="${textoIngles}"]`).forEach(el => {
+                el.setAttribute('aria-label', TRADUCCIONES[textoIngles]);
+            });
+        });
+
+        // Traducir inputs de búsqueda
+        document.querySelectorAll('input[placeholder*="Search"], input[aria-label="Search"]').forEach(input => {
+            input.setAttribute('placeholder', 'Buscar...');
+            input.setAttribute('aria-label', 'Buscar');
+        });
+    }
+
+    // Observador MutationObserver ultra-agresivo
+    const observerConfig = {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ['role', 'class']
+    };
+
+    const observer = new MutationObserver((mutations) => {
+        traducirMenus();
+    });
+
+    // Iniciar observación
+    observer.observe(document.body, observerConfig);
+
+    // Ejecutar traducción continuamente (cada 50ms)
+    setInterval(traducirMenus, 50);
+
+    // Ejecutar inmediatamente
+    traducirMenus();
+
+    // También ejecutar cuando se hace clic (para capturar menús que se abren)
+    document.addEventListener('click', () => {
+        setTimeout(traducirMenus, 10);
+        setTimeout(traducirMenus, 50);
+        setTimeout(traducirMenus, 100);
+    });
+    </script>
     """,
     unsafe_allow_html=True,
 )
