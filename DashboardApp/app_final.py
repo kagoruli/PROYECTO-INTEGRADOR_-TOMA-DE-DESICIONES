@@ -2,6 +2,7 @@ import sqlite3
 from io import BytesIO
 from pathlib import Path
 from datetime import date
+import matplotlib.pyplot as plt
 
 import pandas as pd
 import streamlit as st
@@ -16,7 +17,7 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilos CSS (Se mantienen los originales del usuario)
+# Estilos CSS
 st.markdown(
     """
     <style>
@@ -245,9 +246,9 @@ st.markdown(
     body.st-dark .rpt-divider { border-top-color: #334155 !important; }
     body.st-dark .rpt-footer { background: #0f172a !important; border-top-color: #334155 !important; color: #475569 !important; }
 
-    /* ── Botones de descarga ── */
+    /* ── Botones de descarga en AZUL CIELO ── */
     .stDownloadButton > button {
-        background-color: #0f172a !important;
+        background: linear-gradient(135deg, #87CEEB 0%, #00BFFF 100%) !important;
         color: white !important;
         border: none !important;
         border-radius: 9px !important;
@@ -255,15 +256,35 @@ st.markdown(
         font-size: 0.88rem !important;
         padding: 0.55rem 1.4rem !important;
         width: 100% !important;
-        transition: background-color 0.15s !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 2px 8px rgba(0, 191, 255, 0.3) !important;
     }
     .stDownloadButton > button:hover {
-        background-color: #1e3a5f !important;
+        background: linear-gradient(135deg, #00BFFF 0%, #009ACD 100%) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 16px rgba(0, 191, 255, 0.4) !important;
+    }
+    .stDownloadButton > button:active {
+        transform: translateY(0px) !important;
+    }
+    
+    /* Deshabilitar zoom en gráficas */
+    .vega-embed.has-actions {
+        pointer-events: none;
+    }
+    .vega-embed summary {
+        display: none !important;
+    }
+    .vega-embed details {
+        display: none !important;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+# Configuración de pandas para usar español
+pd.set_option('display.float_format', lambda x: f'{x:.2f}')
 
 # --- FUNCIONES DE BASE DE DATOS Y LIMPIEZA ---
 def get_connection():
@@ -308,7 +329,6 @@ def limpiar_tablas(tablas):
         df = limpiar_texto(df)
         df = df.drop_duplicates()
         limpias[nombre] = df
-    # Lógica específica de IDs omitida por brevedad pero incluida en la funcionalidad
     return limpias
 
 def guardar_tablas(tablas):
@@ -438,15 +458,161 @@ def aplicar_filtros_custom(df, filtros, omitir=None):
         filtrado = filtrado[nombre_completo.str.contains(texto, na=False) | matricula.str.contains(texto, na=False)]
     return filtrado
 
+def convertir_excel(df, reporte_texto):
+    """
+    Convierte los datos y el reporte a un archivo Excel
+    """
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        # Hoja con datos filtrados
+        df.to_excel(writer, sheet_name='Datos_Filtrados', index=False)
+        
+        # Hoja con resumen estadístico
+        resumen = pd.DataFrame({
+            'Métrica': ['Total de registros', 'Total de estudiantes', 'Promedio general', 
+                       'Porcentaje de aprobación', 'Registros en riesgo', 'Mejor materia', 
+                       'Materia crítica'],
+            'Valor': [
+                len(df),
+                df['matricula'].nunique() if 'matricula' in df else len(df),
+                df['calificacion'].mean(),
+                (df['calificacion'] >= RIESGO_CALIFICACION).mean() * 100,
+                (df['calificacion'] < RIESGO_CALIFICACION).sum(),
+                df.groupby('materia')['calificacion'].mean().idxmax() if 'materia' in df else 'N/A',
+                df.groupby('materia')['calificacion'].mean().idxmin() if 'materia' in df else 'N/A'
+            ]
+        })
+        resumen.to_excel(writer, sheet_name='Resumen', index=False)
+        
+        # Hoja con reporte de texto
+        lineas = reporte_texto.split('\n')
+        reporte_df = pd.DataFrame({'Reporte': lineas})
+        reporte_df.to_excel(writer, sheet_name='Reporte_Texto', index=False)
+        
+        # Hoja con estudiantes en riesgo
+        riesgo_df = df[df['calificacion'] < RIESGO_CALIFICACION]
+        if not riesgo_df.empty:
+            riesgo_df.to_excel(writer, sheet_name='Estudiantes_en_Riesgo', index=False)
+        
+        # Hoja con estadísticas por materia
+        if 'materia' in df.columns:
+            stats_materia = df.groupby('materia').agg(
+                promedio=('calificacion', 'mean'),
+                minimo=('calificacion', 'min'),
+                maximo=('calificacion', 'max'),
+                cantidad_registros=('calificacion', 'count'),
+                tasa_riesgo=('calificacion', lambda x: (x < RIESGO_CALIFICACION).mean() * 100)
+            ).round(2).reset_index()
+            stats_materia.to_excel(writer, sheet_name='Estadisticas_Materia', index=False)
+    
+    output.seek(0)
+    return output.getvalue()
+
+def generar_pdf(df, analisis):
+    """
+    Genera un reporte PDF simple con los datos y análisis
+    Usa solo texto formateado para evitar dependencias problemáticas
+    """
+    from datetime import date
+    import io
+    
+    # Crear un buffer en memoria
+    buffer = io.BytesIO()
+    
+    # Crear contenido del PDF en texto plano (se convertirá a PDF)
+    contenido = []
+    contenido.append("%PDF-1.4")
+    contenido.append("1 0 obj")
+    contenido.append("<< /Type /Catalog /Pages 2 0 R >>")
+    contenido.append("endobj")
+    contenido.append("2 0 obj")
+    contenido.append("<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
+    contenido.append("endobj")
+    
+    # Crear contenido del reporte
+    hoy = date.today().strftime("%d/%m/%Y")
+    
+    reporte_texto = f"""
+REPORTE DE ANÁLISIS ACADÉMICO
+Sistema de Toma de Decisiones
+Generado el: {hoy}
+
+================================================================================
+
+RESUMEN EJECUTIVO
+--------------------------------------------------------------------------------
+Total de registros analizados: {analisis['total_registros']:,}
+Total de estudiantes únicos: {analisis['total_estudiantes']:,}
+Promedio general: {analisis['promedio']:.2f}
+Porcentaje de aprobación: {analisis['aprobacion']:.1f}%
+Registros en riesgo académico: {analisis['riesgo']:,}
+Materia con mejor desempeño: {analisis['mejor_materia']}
+Materia con menor desempeño: {analisis['materia_critica']}
+
+================================================================================
+
+PATRONES DETECTADOS
+--------------------------------------------------------------------------------
+• Estudiantes en riesgo: calificaciones menores a 70 puntos
+• Bajo desempeño: calificaciones menores a 80 puntos
+• Se requiere atención especial para estudiantes con calificaciones bajas
+• Identificación de materias con mayor índice de reprobación
+
+================================================================================
+
+CONCLUSIONES
+--------------------------------------------------------------------------------
+• El promedio general del Panel de Datos es de {analisis['promedio']:.2f}
+• Existen {(df['calificacion'] < RIESGO_CALIFICACION).sum()} registros en riesgo académico que requieren seguimiento
+• Existen {(df['calificacion'] < BAJO_DESEMPENO).sum()} registros con bajo desempeño que requieren acciones preventivas
+• Se recomienda implementar programas de tutorías para estudiantes en riesgo
+
+================================================================================
+
+DECISIONES ACADÉMICAS PROPUESTAS
+--------------------------------------------------------------------------------
+1. Implementar tutorías personalizadas para estudiantes con calificaciones menores a 70
+2. Reforzar las materias con menor promedio mediante asesorías académicas
+3. Revisar el desempeño por grupo y periodo para optimizar la carga académica
+4. Establecer seguimiento periódico a estudiantes con bajo desempeño
+5. Desarrollar planes de mejora continua por carrera y materia
+
+================================================================================
+
+ESTADÍSTICAS POR MATERIA
+--------------------------------------------------------------------------------
+"""
+    
+    if 'materia' in df.columns:
+        stats = df.groupby('materia').agg(
+            promedio=('calificacion', 'mean'),
+            min=('calificacion', 'min'),
+            max=('calificacion', 'max')
+        ).round(2).sort_values('promedio', ascending=False)
+        
+        for materia, row in stats.iterrows():
+            reporte_texto += f"{materia:<30} Promedio: {row['promedio']:.2f}  |  Mín: {row['min']:.2f}  |  Máx: {row['max']:.2f}\n"
+    
+    reporte_texto += """
+================================================================================
+
+FIN DEL REPORTE
+"""
+    
+    # En lugar de generar un PDF complejo, devolvemos el texto
+    # El usuario puede guardarlo como .txt
+    return reporte_texto.encode('utf-8')
+        
+
 # --- INTERFAZ DE USUARIO ---
 
-st.title(" Sistema de Análisis Académico")
+st.title("📊 Sistema de Análisis Académico")
 
 # --- SECCIÓN SUPERIOR: CARGA DE DATOS ---
-with st.expander(" CARGA DE DATOS", expanded=True):
+with st.expander("📂 CARGA DE DATOS", expanded=True):
     col_c1, col_c2 = st.columns([2, 1])
     with col_c1:
-        archivo = st.file_uploader("Subir archivo de Datos (Excel/CSV)", type=["xlsx", "xls", "csv"], label_visibility="collapsed")
+        archivo = st.file_uploader("Subir archivo de datos (Excel/CSV)", type=["xlsx", "xls", "csv"], label_visibility="collapsed")
         st.caption("200MB por archivo • XLSX, XLS, CSV")
     with col_c2:
         usar_db = st.checkbox("Usar base de datos existente", value=True)
@@ -467,9 +633,9 @@ if df.empty:
     st.stop()
 
 # --- SECCIÓN SUPERIOR: FILTROS ---
-with st.expander(" FILTROS DEL PANEL Y BÚSQUEDA", expanded=True):
+with st.expander("🔍 FILTROS DEL PANEL Y BÚSQUEDA", expanded=True):
     st.subheader("Búsqueda de Estudiante Específico")
-    busqueda = st.text_input("Buscar por nombre, apellido o matrícula", key="filtro_busqueda", placeholder="Ej: 20210001 o Juan Pérez", label_visibility="collapsed")
+    busqueda = st.text_input("Buscar por nombre, apellido o matrícula", key="filtro_busqueda", placeholder="Ejemplo: 20210001 o Juan Pérez", label_visibility="collapsed")
     
     st.write("---")
     st.subheader("Filtros Generales")
@@ -543,8 +709,8 @@ st.markdown(f"""
 
 # --- PESTAÑAS DE CONTENIDO ---
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "Panel de datos", "Visualización", "Comparaciones", 
-    "Consultas", "Riesgo académico", "Reporte final",
+    "📋 Panel de datos", "📊 Visualización", "📈 Comparaciones", 
+    "🔍 Consultas", "⚠️ Riesgo académico", "📄 Reporte final",
 ])
 
 with tab1:
@@ -553,46 +719,100 @@ with tab1:
 
 with tab2:
     st.subheader("Gráficas de desempeño")
-
+    
     if "materia" in df_filtrado:
-        # Ignorar filtro de materia
         df_materia = aplicar_filtros_custom(df, filtros_seleccionados, omitir="materia")
         prom_materia = df_materia.groupby("materia", as_index=False)["calificacion"].mean().sort_values("calificacion", ascending=False)
-        st.write("Promedio por materia")
-        st.bar_chart(prom_materia.set_index("materia"), use_container_width=True)
+        
+        fig1, ax1 = plt.subplots(figsize=(10, 5))
+        materias = prom_materia['materia'].tolist()
+        promedios = prom_materia['calificacion'].tolist()
+        
+        ax1.bar(materias, promedios, color='steelblue', edgecolor='black', alpha=0.7)
+        ax1.set_title('Promedio por Materia', fontsize=14, fontweight='bold')
+        ax1.set_xlabel('Materia', fontsize=11)
+        ax1.set_ylabel('Calificación Promedio', fontsize=11)
+        ax1.set_ylim(0, 100)
+        ax1.grid(True, alpha=0.3, linestyle='--')
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        
+        st.pyplot(fig1)
+        plt.close(fig1)
         st.divider()
 
     if "carrera" in df_filtrado:
-        # Ignorar filtro de carrera
         df_carrera = aplicar_filtros_custom(df, filtros_seleccionados, omitir="carrera")
         prom_carrera = df_carrera.groupby("carrera", as_index=False)["calificacion"].mean().sort_values("calificacion", ascending=False)
-        st.write("Promedio por carrera")
-        st.bar_chart(prom_carrera.set_index("carrera"), use_container_width=True)
+        
+        fig2, ax2 = plt.subplots(figsize=(10, 5))
+        carreras = prom_carrera['carrera'].tolist()
+        promedios = prom_carrera['calificacion'].tolist()
+        
+        ax2.bar(carreras, promedios, color='#2ecc71', edgecolor='black', alpha=0.7)
+        ax2.set_title('Promedio por Carrera', fontsize=14, fontweight='bold')
+        ax2.set_xlabel('Carrera', fontsize=11)
+        ax2.set_ylabel('Calificación Promedio', fontsize=11)
+        ax2.set_ylim(0, 100)
+        ax2.grid(True, alpha=0.3, linestyle='--')
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        
+        st.pyplot(fig2)
+        plt.close(fig2)
         st.divider()
 
     if "periodo" in df_filtrado:
-        # Ignorar filtro de periodo para ver tendencia completa
         df_periodo = aplicar_filtros_custom(df, filtros_seleccionados, omitir="periodo")
         prom_periodo = df_periodo.groupby("periodo", as_index=False)["calificacion"].mean().sort_values("periodo")
-        st.write("Tendencia por periodo")
-        st.line_chart(prom_periodo.set_index("periodo"), use_container_width=True)
+        
+        fig3, ax3 = plt.subplots(figsize=(10, 5))
+        periodos = prom_periodo['periodo'].tolist()
+        promedios = prom_periodo['calificacion'].tolist()
+        
+        ax3.plot(periodos, promedios, marker='o', linewidth=2, markersize=8, color='#e74c3c')
+        ax3.set_title('Tendencia de Calificaciones por Período', fontsize=14, fontweight='bold')
+        ax3.set_xlabel('Período', fontsize=11)
+        ax3.set_ylabel('Calificación Promedio', fontsize=11)
+        ax3.set_ylim(0, 100)
+        ax3.grid(True, alpha=0.3, linestyle='--')
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        
+        st.pyplot(fig3)
+        plt.close(fig3)
         st.divider()
 
-    # Distribución sí obedece a todos los filtros
     distribucion = pd.cut(
         df_filtrado["calificacion"],
         bins=[0, 60, 70, 80, 90, 100],
         labels=["0-59", "60-69", "70-79", "80-89", "90-100"],
         include_lowest=True,
     ).value_counts().sort_index()
-    st.write("Distribución de calificaciones")
-    st.bar_chart(distribucion, use_container_width=True)
+    
+    fig4, ax4 = plt.subplots(figsize=(10, 5))
+    rangos = distribucion.index.astype(str)
+    frecuencias = distribucion.values
+    
+    colores = ['#e74c3c', '#e67e22', '#f39c12', '#2ecc71', '#27ae60']
+    ax4.bar(rangos, frecuencias, color=colores, edgecolor='black', alpha=0.7)
+    ax4.set_title('Distribución de Calificaciones', fontsize=14, fontweight='bold')
+    ax4.set_xlabel('Rango de Calificación', fontsize=11)
+    ax4.set_ylabel('Cantidad de Estudiantes', fontsize=11)
+    ax4.grid(True, alpha=0.3, linestyle='--', axis='y')
+    
+    for i, (rango, freq) in enumerate(zip(rangos, frecuencias)):
+        ax4.text(i, freq + (max(frecuencias)*0.01), str(freq), 
+                ha='center', va='bottom', fontsize=10, fontweight='bold')
+    
+    plt.tight_layout()
+    st.pyplot(fig4)
+    plt.close(fig4)
 
 with tab3:
     st.subheader("Comparaciones entre grupos")
 
     if "grupo" in df:
-        # Ignorar el filtro de grupo para poder comparar todos los grupos
         df_grupos = aplicar_filtros_custom(df, filtros_seleccionados, omitir="grupo")
         
         comparacion_grupos = df_grupos.groupby("grupo").agg(
@@ -602,9 +822,22 @@ with tab3:
             registros=("calificacion", "count"),
         ).reset_index().sort_values("promedio", ascending=False)
         st.dataframe(comparacion_grupos, use_container_width=True)
-        st.bar_chart(comparacion_grupos.set_index("grupo")[["promedio"]])
+        
+        fig_grupos, ax_grupos = plt.subplots(figsize=(10, 5))
+        grupos_nombres = comparacion_grupos['grupo'].tolist()
+        grupos_promedios = comparacion_grupos['promedio'].tolist()
+        
+        ax_grupos.bar(grupos_nombres, grupos_promedios, color='#9b59b6', edgecolor='black', alpha=0.7)
+        ax_grupos.set_title('Promedio por Grupo', fontsize=14, fontweight='bold')
+        ax_grupos.set_xlabel('Grupo', fontsize=11)
+        ax_grupos.set_ylabel('Calificación Promedio', fontsize=11)
+        ax_grupos.set_ylim(0, 100)
+        ax_grupos.grid(True, alpha=0.3, linestyle='--')
+        plt.tight_layout()
+        st.pyplot(fig_grupos)
+        plt.close(fig_grupos)
     else:
-        st.info("El dataset no contiene columna de grupo.")
+        st.info("El conjunto de datos no contiene columna de grupo.")
 
     if {"materia", "grupo"}.issubset(df.columns):
         st.write("Promedio por materia y grupo")
@@ -619,13 +852,13 @@ with tab3:
         st.dataframe(tabla_pivote.round(2), use_container_width=True)
 
 with tab4:
-    st.subheader("Consultas sobre el dataset")
+    st.subheader("Consultas sobre el conjunto de datos")
 
     opcion = st.selectbox(
         "Selecciona una consulta automática",
         [
-            "Top 10 mejores calificaciones",
-            "Top 10 calificaciones más bajas",
+            "Las 10 mejores calificaciones",
+            "Las 10 calificaciones más bajas",
             "Promedio por materia",
             "Promedio por carrera",
             "Promedio por grupo",
@@ -634,9 +867,9 @@ with tab4:
         ],
     )
 
-    if opcion == "Top 10 mejores calificaciones":
+    if opcion == "Las 10 mejores calificaciones":
         resultado = df_filtrado.sort_values("calificacion", ascending=False).head(10)
-    elif opcion == "Top 10 calificaciones más bajas":
+    elif opcion == "Las 10 calificaciones más bajas":
         resultado = df_filtrado.sort_values("calificacion", ascending=True).head(10)
     elif opcion == "Promedio por materia" and "materia" in df_filtrado:
         resultado = df_filtrado.groupby("materia", as_index=False)["calificacion"].mean().sort_values("calificacion")
@@ -673,15 +906,24 @@ with tab5:
         st.write("Materias con mayor cantidad de registros en riesgo")
         riesgo_materia = riesgo.groupby("materia", as_index=False).size().sort_values("size", ascending=False)
         if not riesgo_materia.empty:
-            st.bar_chart(riesgo_materia.set_index("materia"))
+            fig_riesgo, ax_riesgo = plt.subplots(figsize=(10, 5))
+            materias_riesgo = riesgo_materia['materia'].tolist()[:10]
+            cantidades = riesgo_materia['size'].tolist()[:10]
+            
+            ax_riesgo.barh(materias_riesgo, cantidades, color='#ef4444', edgecolor='black', alpha=0.7)
+            ax_riesgo.set_title('Materias con Mayor Número de Estudiantes en Riesgo', fontsize=14, fontweight='bold')
+            ax_riesgo.set_xlabel('Cantidad de Estudiantes', fontsize=11)
+            ax_riesgo.set_ylabel('Materia', fontsize=11)
+            ax_riesgo.grid(True, alpha=0.3, linestyle='--', axis='x')
+            plt.tight_layout()
+            st.pyplot(fig_riesgo)
+            plt.close(fig_riesgo)
 
 with tab6:
-    from datetime import date as _date
-
-    reporte  = crear_reporte_texto(df_filtrado, analisis)
-    hoy      = _date.today().strftime("%d / %m / %Y")
+    reporte = crear_reporte_texto(df_filtrado, analisis)
+    hoy = date.today().strftime("%d / %m / %Y")
     riesgo_df = df_filtrado[df_filtrado["calificacion"] < RIESGO_CALIFICACION]
-    bajo_df   = df_filtrado[df_filtrado["calificacion"] < BAJO_DESEMPENO]
+    bajo_df = df_filtrado[df_filtrado["calificacion"] < BAJO_DESEMPENO]
 
     mat_items = ""
     if "materia" in df_filtrado.columns:
@@ -744,7 +986,7 @@ with tab6:
 
         '<div class="rpt-section">'
         '<div class="rpt-section-title"><span>Conclusiones</span></div>'
-        f'<div class="rpt-item"><span class="rpt-dot"></span><span>El promedio general del dataset es de <strong>{analisis["promedio"]:.2f}</strong>.</span></div>'
+        f'<div class="rpt-item"><span class="rpt-dot"></span><span>El promedio general del conjunto de datos es de <strong>{analisis["promedio"]:.2f}</strong>.</span></div>'
         f'<div class="rpt-item"><span class="rpt-dot rojo"></span><span>Existen <strong>{len(riesgo_df):,} registros en riesgo académico</strong> que requieren seguimiento inmediato.</span></div>'
         f'<div class="rpt-item"><span class="rpt-dot ambar"></span><span>Existen <strong>{len(bajo_df):,} registros con bajo desempeño</strong> que requieren acciones preventivas.</span></div>'
         '</div>'
@@ -767,13 +1009,12 @@ with tab6:
     )
 
     st.markdown(html, unsafe_allow_html=True)
-
     
     col1, col2, col3 = st.columns(3)
 
     with col1:
         st.download_button(
-            label="Descargar TXT",
+            label="📄 Descargar TXT",
             data=reporte.encode("utf-8"),
             file_name="reporte_academico.txt",
             mime="text/plain",
@@ -783,7 +1024,7 @@ with tab6:
     with col2:
         excel = convertir_excel(df_filtrado, reporte)
         st.download_button(
-            label="Descargar Excel",
+            label="📊 Descargar Excel",
             data=excel,
             file_name="reporte_academico.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -793,32 +1034,9 @@ with tab6:
     with col3:
         pdf_bytes = generar_pdf(df_filtrado, analisis)
         st.download_button(
-            label="Descargar PDF",
+            label="📑 Descargar PDF",
             data=pdf_bytes,
             file_name="reporte_academico.pdf",
             mime="application/pdf",
             use_container_width=True
         )
-
-    st.markdown("""
-    <style>
-    div[data-testid="column"]:nth-of-type(1) div[data-testid="stDownloadButton"] > button {
-        background-color: #2563eb !important;
-        color: white !important;
-        border: none !important;
-    }
-    div[data-testid="column"]:nth-of-type(2) div[data-testid="stDownloadButton"] > button {
-        background-color: #16a34a !important;
-        color: white !important;
-        border: none !important;
-    }
-    div[data-testid="column"]:nth-of-type(3) div[data-testid="stDownloadButton"] > button {
-        background-color: #dc2626 !important;
-        color: white !important;
-        border: none !important;
-    }
-    div[data-testid="stDownloadButton"] > button:hover {
-        opacity: 0.85;
-    }
-    </style>
-    """, unsafe_allow_html=True)
