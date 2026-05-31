@@ -324,6 +324,16 @@ st.markdown(
     .vega-embed details {
         display: none !important;
     }
+
+    /* ── Pestañas más grandes (solo tamaño) ── */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        font-size: 1.6rem;
+        padding-top: 20px;
+        padding-bottom: 20px;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -337,17 +347,17 @@ def tabla_html_estatica(df, max_height=400, full_width=True):
     """Genera una tabla HTML completamente estática sin ningún control interactivo"""
     if df.empty:
         return "<div style='text-align:center; padding:40px; color:#64748b;'>No hay datos disponibles</div>"
-    
+
     # Copiar y formatear números
     df_display = df.copy()
     for col in df_display.select_dtypes(include=['float64', 'float32']).columns:
         df_display[col] = df_display[col].apply(lambda x: f'{x:.2f}')
-    
+
     # Generar HTML de la tabla
     container_class = "table-container" if max_height < 999 else "table-container-full"
     html = f'<div class="{container_class}" style="max-height:{max_height}px;">'
     html += '<table class="static-table">'
-    
+
     # Encabezados
     html += '<thead><tr>'
     for col in df_display.columns:
@@ -355,7 +365,7 @@ def tabla_html_estatica(df, max_height=400, full_width=True):
         col_display = col.replace('_', ' ').title()
         html += f'<th>{col_display}</th>'
     html += '</tr></thead>'
-    
+
     # Filas
     html += '<tbody>'
     for _, row in df_display.iterrows():
@@ -365,9 +375,100 @@ def tabla_html_estatica(df, max_height=400, full_width=True):
             html += f'<td>{value}</td>'
         html += '</tr>'
     html += '</tbody>'
-    
+
     html += '</table></div>'
     return html
+
+# --- FUNCIÓN PARA TABLA HTML PAGINADA ---
+def tabla_html_paginada(df):
+    """Genera una tabla HTML con paginación"""
+    if df.empty:
+        st.info("No hay datos disponibles")
+        return
+
+    # Inicializar variables de paginación en session_state
+    if 'pagina_actual' not in st.session_state:
+        st.session_state.pagina_actual = 1
+    if 'filas_por_pagina' not in st.session_state:
+        st.session_state.filas_por_pagina = 20
+
+    # Controles de paginación
+    col_info, col_space, col_filas, col_prev, col_pag, col_next = st.columns([3, 2, 1.5, 0.8, 1.2, 0.8])
+
+    # Calcular páginas
+    total_registros = len(df)
+    total_paginas = (total_registros - 1) // st.session_state.filas_por_pagina + 1
+
+    with col_info:
+        st.markdown(f"**Total de registros:** {total_registros:,}")
+
+    with col_filas:
+        filas_opciones = [10, 20, 50, 100]
+        st.session_state.filas_por_pagina = st.selectbox(
+            "Filas por página",
+            filas_opciones,
+            index=filas_opciones.index(st.session_state.filas_por_pagina) if st.session_state.filas_por_pagina in filas_opciones else 1,
+            key="select_filas_pagina"
+        )
+        # Recalcular total de páginas después de cambiar filas por página
+        total_paginas = (total_registros - 1) // st.session_state.filas_por_pagina + 1
+        # Ajustar página actual si es necesario
+        if st.session_state.pagina_actual > total_paginas:
+            st.session_state.pagina_actual = total_paginas
+
+    with col_prev:
+        if st.button("◀", key="btn_prev", disabled=(st.session_state.pagina_actual == 1), use_container_width=True):
+            st.session_state.pagina_actual -= 1
+            st.rerun()
+
+    with col_pag:
+        st.markdown(f"<div style='text-align:center; padding:5px; font-weight:600;'>Página {st.session_state.pagina_actual} / {total_paginas}</div>", unsafe_allow_html=True)
+
+    with col_next:
+        if st.button("▶", key="btn_next", disabled=(st.session_state.pagina_actual == total_paginas), use_container_width=True):
+            st.session_state.pagina_actual += 1
+            st.rerun()
+
+    st.write("")
+
+    # Calcular índices para la página actual
+    inicio = (st.session_state.pagina_actual - 1) * st.session_state.filas_por_pagina
+    fin = min(inicio + st.session_state.filas_por_pagina, total_registros)
+
+    # Obtener datos de la página actual
+    df_pagina = df.iloc[inicio:fin].copy()
+
+    # Copiar y formatear números
+    for col in df_pagina.select_dtypes(include=['float64', 'float32']).columns:
+        df_pagina[col] = df_pagina[col].apply(lambda x: f'{x:.2f}')
+
+    # Generar HTML de la tabla sin scroll
+    html = '<div class="table-container-full">'
+    html += '<table class="static-table">'
+
+    # Encabezados
+    html += '<thead><tr>'
+    for col in df_pagina.columns:
+        col_display = col.replace('_', ' ').title()
+        html += f'<th>{col_display}</th>'
+    html += '</tr></thead>'
+
+    # Filas
+    html += '<tbody>'
+    for _, row in df_pagina.iterrows():
+        html += '<tr>'
+        for col in df_pagina.columns:
+            value = row[col]
+            html += f'<td>{value}</td>'
+        html += '</tr>'
+    html += '</tbody>'
+
+    html += '</table></div>'
+
+    st.markdown(html, unsafe_allow_html=True)
+
+    # Información de registros mostrados
+    st.caption(f"Mostrando registros {inicio + 1} - {fin} de {total_registros}")
 
 # --- FUNCIONES DE BASE DE DATOS Y LIMPIEZA ---
 def get_connection():
@@ -541,6 +642,71 @@ def aplicar_filtros_custom(df, filtros, omitir=None):
         filtrado = filtrado[nombre_completo.str.contains(texto, na=False) | matricula.str.contains(texto, na=False)]
     return filtrado
 
+def generar_ejemplo_csv():
+    """
+    Genera un archivo CSV de ejemplo con la estructura esperada
+    """
+    ejemplo = pd.DataFrame({
+        'matricula': [20210001, 20210001, 20210002, 20210002, 20210003, 20210003, 20210004, 20210004],
+        'nombre': ['Juan', 'Juan', 'María', 'María', 'Pedro', 'Pedro', 'Ana', 'Ana'],
+        'apellido': ['Pérez', 'Pérez', 'García', 'García', 'López', 'López', 'Martínez', 'Martínez'],
+        'carrera': ['Ingeniería en Sistemas', 'Ingeniería en Sistemas', 'Administración', 'Administración',
+                   'Ingeniería en Sistemas', 'Ingeniería en Sistemas', 'Contaduría', 'Contaduría'],
+        'materia': ['Matemáticas', 'Programación', 'Matemáticas', 'Contabilidad',
+                   'Programación', 'Base de Datos', 'Contabilidad', 'Matemáticas'],
+        'periodo': ['2024-1', '2024-1', '2024-1', '2024-1', '2024-1', '2024-1', '2024-1', '2024-1'],
+        'grupo': ['A', 'B', 'A', 'A', 'B', 'A', 'A', 'C'],
+        'calificacion': [85.5, 92.0, 78.0, 88.5, 95.0, 87.0, 90.5, 82.0]
+    })
+    return ejemplo.to_csv(index=False).encode('utf-8')
+
+def generar_ejemplo_excel():
+    """
+    Genera un archivo Excel de ejemplo con múltiples hojas (estructura completa)
+    """
+    output = BytesIO()
+
+    # Crear datos de ejemplo
+    carreras = pd.DataFrame({
+        'id_carrera': [1, 2, 3],
+        'carrera': ['Ingeniería en Sistemas', 'Administración', 'Contaduría']
+    })
+
+    materias = pd.DataFrame({
+        'id_materia': [1, 2, 3, 4],
+        'materia': ['Matemáticas', 'Programación', 'Contabilidad', 'Base de Datos']
+    })
+
+    estudiantes = pd.DataFrame({
+        'matricula': [20210001, 20210002, 20210003, 20210004],
+        'nombre': ['Juan', 'María', 'Pedro', 'Ana'],
+        'apellido': ['Pérez', 'García', 'López', 'Martínez'],
+        'id_carrera': [1, 2, 1, 3]
+    })
+
+    cursos = pd.DataFrame({
+        'id_curso': [1, 2, 3, 4, 5, 6],
+        'id_materia': [1, 2, 1, 3, 2, 4],
+        'periodo': ['2024-1', '2024-1', '2024-1', '2024-1', '2024-1', '2024-1'],
+        'grupo': ['A', 'B', 'A', 'A', 'B', 'A']
+    })
+
+    calificaciones = pd.DataFrame({
+        'matricula': [20210001, 20210001, 20210002, 20210002, 20210003, 20210003, 20210004, 20210004],
+        'id_curso': [1, 2, 1, 4, 2, 6, 4, 1],
+        'calificacion': [85.5, 92.0, 78.0, 88.5, 95.0, 87.0, 90.5, 82.0]
+    })
+
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        carreras.to_excel(writer, sheet_name='Carreras', index=False)
+        materias.to_excel(writer, sheet_name='Materias', index=False)
+        estudiantes.to_excel(writer, sheet_name='Estudiantes', index=False)
+        cursos.to_excel(writer, sheet_name='Cursos', index=False)
+        calificaciones.to_excel(writer, sheet_name='Calificaciones', index=False)
+
+    output.seek(0)
+    return output.getvalue()
+
 def convertir_excel(df, reporte_texto):
     """
     Convierte los datos y el reporte a un archivo Excel
@@ -549,11 +715,11 @@ def convertir_excel(df, reporte_texto):
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         # Hoja con datos filtrados
         df.to_excel(writer, sheet_name='Datos_Filtrados', index=False)
-        
+
         # Hoja con resumen estadístico
         resumen = pd.DataFrame({
-            'Métrica': ['Total de registros', 'Total de estudiantes', 'Promedio general', 
-                       'Porcentaje de aprobación', 'Registros en riesgo', 'Mejor materia', 
+            'Métrica': ['Total de registros', 'Total de estudiantes', 'Promedio general',
+                       'Porcentaje de aprobación', 'Registros en riesgo', 'Mejor materia',
                        'Materia crítica'],
             'Valor': [
                 len(df),
@@ -566,17 +732,17 @@ def convertir_excel(df, reporte_texto):
             ]
         })
         resumen.to_excel(writer, sheet_name='Resumen', index=False)
-        
+
         # Hoja con reporte de texto
         lineas = reporte_texto.split('\n')
         reporte_df = pd.DataFrame({'Reporte': lineas})
         reporte_df.to_excel(writer, sheet_name='Reporte_Texto', index=False)
-        
+
         # Hoja con estudiantes en riesgo
         riesgo_df = df[df['calificacion'] < RIESGO_CALIFICACION]
         if not riesgo_df.empty:
             riesgo_df.to_excel(writer, sheet_name='Estudiantes_en_Riesgo', index=False)
-        
+
         # Hoja con estadísticas por materia
         if 'materia' in df.columns:
             stats_materia = df.groupby('materia').agg(
@@ -587,104 +753,150 @@ def convertir_excel(df, reporte_texto):
                 tasa_riesgo=('calificacion', lambda x: (x < RIESGO_CALIFICACION).mean() * 100)
             ).round(2).reset_index()
             stats_materia.to_excel(writer, sheet_name='Estadisticas_Materia', index=False)
-    
+
     output.seek(0)
     return output.getvalue()
 
 def generar_pdf(df, analisis):
     """
-    Genera un reporte PDF simple con los datos y análisis
-    Usa solo texto formateado para evitar dependencias problemáticas
+    Genera un reporte PDF real con los datos y análisis
     """
-    from datetime import date
-    import io
-    
-    # Crear un buffer en memoria
-    buffer = io.BytesIO()
-    
-    # Crear contenido del PDF en texto plano (se convertirá a PDF)
-    contenido = []
-    contenido.append("%PDF-1.4")
-    contenido.append("1 0 obj")
-    contenido.append("<< /Type /Catalog /Pages 2 0 R >>")
-    contenido.append("endobj")
-    contenido.append("2 0 obj")
-    contenido.append("<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
-    contenido.append("endobj")
-    
-    # Crear contenido del reporte
-    hoy = date.today().strftime("%d/%m/%Y")
-    
-    reporte_texto = f"""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib import colors
+        from io import BytesIO
+        from datetime import date
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+        story = []
+        styles = getSampleStyleSheet()
+
+        # Estilo personalizado para título
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            textColor=colors.HexColor('#1e293b'),
+            spaceAfter=12,
+            alignment=1  # Centrado
+        )
+
+        # Estilo para subtítulos
+        subtitle_style = ParagraphStyle(
+            'CustomSubtitle',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#3b82f6'),
+            spaceAfter=10
+        )
+
+        # Fecha actual
+        hoy = date.today().strftime("%d/%m/%Y")
+
+        # Título
+        story.append(Paragraph("REPORTE DE ANÁLISIS ACADÉMICO", title_style))
+        story.append(Paragraph(f"Sistema de Toma de Decisiones - Generado el {hoy}", styles['Normal']))
+        story.append(Spacer(1, 0.3*inch))
+
+        # Resumen Ejecutivo
+        story.append(Paragraph("RESUMEN EJECUTIVO", subtitle_style))
+        resumen_data = [
+            ['Total de registros analizados:', f"{analisis['total_registros']:,}"],
+            ['Total de estudiantes únicos:', f"{analisis['total_estudiantes']:,}"],
+            ['Promedio general:', f"{analisis['promedio']:.2f}"],
+            ['Porcentaje de aprobación:', f"{analisis['aprobacion']:.1f}%"],
+            ['Registros en riesgo académico:', f"{analisis['riesgo']:,}"],
+            ['Materia con mejor desempeño:', analisis['mejor_materia']],
+            ['Materia con menor desempeño:', analisis['materia_critica']]
+        ]
+        tabla_resumen = Table(resumen_data, colWidths=[3.5*inch, 2*inch])
+        tabla_resumen.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f8fafc')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1e293b')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0'))
+        ]))
+        story.append(tabla_resumen)
+        story.append(Spacer(1, 0.3*inch))
+
+        # Conclusiones
+        story.append(Paragraph("CONCLUSIONES", subtitle_style))
+        conclusiones = f"""
+        • El promedio general del conjunto de datos es de <b>{analisis['promedio']:.2f}</b>.<br/>
+        • Existen <b>{(df['calificacion'] < RIESGO_CALIFICACION).sum():,} registros en riesgo académico</b> que requieren seguimiento inmediato.<br/>
+        • Existen <b>{(df['calificacion'] < BAJO_DESEMPENO).sum():,} registros con bajo desempeño</b> que requieren acciones preventivas.<br/>
+        • Se recomienda implementar programas de tutorías para estudiantes en riesgo.
+        """
+        story.append(Paragraph(conclusiones, styles['Normal']))
+        story.append(Spacer(1, 0.2*inch))
+
+        # Decisiones Académicas
+        story.append(Paragraph("DECISIONES ACADÉMICAS PROPUESTAS", subtitle_style))
+        decisiones = """
+        1. Implementar tutorías personalizadas para estudiantes con calificaciones menores a 70.<br/>
+        2. Reforzar las materias con menor promedio mediante asesorías académicas.<br/>
+        3. Revisar el desempeño por grupo y periodo para optimizar la carga académica.<br/>
+        4. Establecer seguimiento periódico a estudiantes con bajo desempeño.<br/>
+        5. Desarrollar planes de mejora continua por carrera y materia.
+        """
+        story.append(Paragraph(decisiones, styles['Normal']))
+        story.append(Spacer(1, 0.2*inch))
+
+        # Estadísticas por Materia
+        if 'materia' in df.columns:
+            story.append(Paragraph("ESTADÍSTICAS POR MATERIA", subtitle_style))
+            stats = df.groupby('materia').agg(
+                promedio=('calificacion', 'mean'),
+                minimo=('calificacion', 'min'),
+                maximo=('calificacion', 'max')
+            ).round(2).sort_values('promedio', ascending=False).reset_index()
+
+            stats_data = [['Materia', 'Promedio', 'Mínimo', 'Máximo']]
+            for _, row in stats.head(10).iterrows():
+                stats_data.append([row['materia'], f"{row['promedio']:.2f}", f"{row['minimo']:.2f}", f"{row['maximo']:.2f}"])
+
+            tabla_stats = Table(stats_data, colWidths=[2.5*inch, 1*inch, 1*inch, 1*inch])
+            tabla_stats.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3b82f6')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8fafc')),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0'))
+            ]))
+            story.append(tabla_stats)
+
+        # Generar PDF
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    except ImportError:
+        # Si reportlab no está instalado, devolver texto plano
+        reporte_texto = f"""
 REPORTE DE ANÁLISIS ACADÉMICO
 Sistema de Toma de Decisiones
-Generado el: {hoy}
-
-================================================================================
+Generado el: {date.today().strftime("%d/%m/%Y")}
 
 RESUMEN EJECUTIVO
---------------------------------------------------------------------------------
-Total de registros analizados: {analisis['total_registros']:,}
-Total de estudiantes únicos: {analisis['total_estudiantes']:,}
+Total de registros: {analisis['total_registros']:,}
+Total de estudiantes: {analisis['total_estudiantes']:,}
 Promedio general: {analisis['promedio']:.2f}
-Porcentaje de aprobación: {analisis['aprobacion']:.1f}%
-Registros en riesgo académico: {analisis['riesgo']:,}
-Materia con mejor desempeño: {analisis['mejor_materia']}
-Materia con menor desempeño: {analisis['materia_critica']}
+Aprobación: {analisis['aprobacion']:.1f}%
 
-================================================================================
-
-PATRONES DETECTADOS
---------------------------------------------------------------------------------
-• Estudiantes en riesgo: calificaciones menores a 70 puntos
-• Bajo desempeño: calificaciones menores a 80 puntos
-• Se requiere atención especial para estudiantes con calificaciones bajas
-• Identificación de materias con mayor índice de reprobación
-
-================================================================================
-
-CONCLUSIONES
---------------------------------------------------------------------------------
-• El promedio general del Panel de Datos es de {analisis['promedio']:.2f}
-• Existen {(df['calificacion'] < RIESGO_CALIFICACION).sum()} registros en riesgo académico que requieren seguimiento
-• Existen {(df['calificacion'] < BAJO_DESEMPENO).sum()} registros con bajo desempeño que requieren acciones preventivas
-• Se recomienda implementar programas de tutorías para estudiantes en riesgo
-
-================================================================================
-
-DECISIONES ACADÉMICAS PROPUESTAS
---------------------------------------------------------------------------------
-1. Implementar tutorías personalizadas para estudiantes con calificaciones menores a 70
-2. Reforzar las materias con menor promedio mediante asesorías académicas
-3. Revisar el desempeño por grupo y periodo para optimizar la carga académica
-4. Establecer seguimiento periódico a estudiantes con bajo desempeño
-5. Desarrollar planes de mejora continua por carrera y materia
-
-================================================================================
-
-ESTADÍSTICAS POR MATERIA
---------------------------------------------------------------------------------
+NOTA: Instale reportlab para generar PDFs con formato.
+pip install reportlab
 """
-    
-    if 'materia' in df.columns:
-        stats = df.groupby('materia').agg(
-            promedio=('calificacion', 'mean'),
-            min=('calificacion', 'min'),
-            max=('calificacion', 'max')
-        ).round(2).sort_values('promedio', ascending=False)
-        
-        for materia, row in stats.iterrows():
-            reporte_texto += f"{materia:<30} Promedio: {row['promedio']:.2f}  |  Mín: {row['min']:.2f}  |  Máx: {row['max']:.2f}\n"
-    
-    reporte_texto += """
-================================================================================
-
-FIN DEL REPORTE
-"""
-    
-    # En lugar de generar un PDF complejo, devolvemos el texto
-    # El usuario puede guardarlo como .txt
-    return reporte_texto.encode('utf-8')
+        return reporte_texto.encode('utf-8')
 
 # --- FUNCIÓN PARA GRÁFICAS MINIMALISTAS ---
 def grafica_minimalista(datos, x, y, titulo, xlabel, ylabel, color='#3b82f6'):
@@ -735,6 +947,53 @@ with st.expander(" CARGA DE DATOS", expanded=True):
     with col_c2:
         usar_db = st.checkbox("Usar base de datos existente", value=True)
 
+    # Menú desplegable para archivos de ejemplo
+    with st.expander("📥 Descargar archivos de ejemplo", expanded=False):
+        st.caption("Descarga estos archivos para conocer la estructura esperada de los datos")
+
+        col_e1, col_e2 = st.columns(2)
+
+        with col_e1:
+            ejemplo_csv = generar_ejemplo_csv()
+            st.download_button(
+                label="📄 Ejemplo CSV Simple",
+                data=ejemplo_csv,
+                file_name="ejemplo_calificaciones.csv",
+                mime="text/csv",
+                use_container_width=True,
+                help="Archivo CSV con estructura simple: matrícula, nombre, apellido, carrera, materia, periodo, grupo, calificación"
+            )
+
+        with col_e2:
+            ejemplo_excel = generar_ejemplo_excel()
+            st.download_button(
+                label="📊 Ejemplo Excel Completo",
+                data=ejemplo_excel,
+                file_name="ejemplo_sistema_completo.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                help="Archivo Excel con 5 hojas: Carreras, Materias, Estudiantes, Cursos y Calificaciones (estructura de base de datos)"
+            )
+
+        st.divider()
+
+        # Información de estructura en un formato más compacto
+        st.markdown("""
+        <div style='background-color: #f0f8ff; padding: 15px; border-radius: 10px; border-left: 4px solid #3b82f6;'>
+            <strong style='color: #3b82f6;'>📋 Estructura de datos requerida:</strong><br><br>
+            <div style='display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9rem;'>
+                <div>• <strong>Matrícula:</strong> Número único del estudiante</div>
+                <div>• <strong>Nombre:</strong> Texto</div>
+                <div>• <strong>Apellido:</strong> Texto</div>
+                <div>• <strong>Carrera:</strong> Nombre de la carrera</div>
+                <div>• <strong>Materia:</strong> Nombre de la materia</div>
+                <div>• <strong>Periodo:</strong> Ej. 2024-1</div>
+                <div>• <strong>Grupo:</strong> Ej. A, B, C</div>
+                <div>• <strong>Calificación:</strong> Número de 0 a 100</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
 # Lógica de carga
 if archivo is not None:
     df_raw = cargar_archivo_subido(archivo)
@@ -752,24 +1011,36 @@ if df.empty:
 
 # --- SECCIÓN SUPERIOR: FILTROS ---
 with st.expander(" FILTROS DEL PANEL Y BÚSQUEDA", expanded=True):
-    st.subheader("Búsqueda de Estudiante Específico")
-    busqueda = st.text_input("Buscar por nombre, apellido o matrícula", key="filtro_busqueda", placeholder="Ejemplo: 20210001 o Juan Pérez", label_visibility="collapsed")
-    
-    st.write("---")
-    st.subheader("Filtros Generales")
-    col1, col2, col3, col4 = st.columns(4)
-    
-    carreras = ["Todas"] + sorted(df["carrera"].dropna().unique().tolist()) if "carrera" in df else ["Todas"]
-    materias = ["Todas"] + sorted(df["materia"].dropna().unique().tolist()) if "materia" in df else ["Todas"]
-    grupos = ["Todos"] + sorted(df["grupo"].dropna().unique().tolist()) if "grupo" in df else ["Todos"]
-    periodos = ["Todos"] + sorted(df["periodo"].dropna().unique().tolist()) if "periodo" in df else ["Todos"]
+    with st.form("formulario_filtros"):
+        st.subheader("Búsqueda de Estudiante Específico")
+        busqueda = st.text_input("Buscar por nombre, apellido o matrícula", key="filtro_busqueda", placeholder="Ejemplo: 20210001 o Juan Pérez", label_visibility="collapsed")
 
-    with col1: carrera = st.selectbox("Carrera", carreras, key="filtro_carrera")
-    with col2: materia = st.selectbox("Materia", materias, key="filtro_materia")
-    with col3: grupo = st.selectbox("Grupo", grupos, key="filtro_grupo")
-    with col4: periodo = st.selectbox("Periodo", periodos, key="filtro_periodo")
-    
-    st.button("Limpiar todos los filtros", on_click=limpiar_filtros, use_container_width=True)
+        st.write("---")
+
+        # Título y botones en la misma fila
+        col_titulo, col_space, col_botones = st.columns([4, 4.5, 2.5])
+        with col_titulo:
+            st.subheader("Filtros Generales")
+        with col_botones:
+            st.write("")  # Espaciado vertical para alinear con el título
+            col_btn1, col_btn2 = st.columns(2)
+            with col_btn1:
+                submit_button = st.form_submit_button("Aplicar", type="secondary", use_container_width=True)
+            with col_btn2:
+                clear_button = st.form_submit_button("Limpiar", on_click=limpiar_filtros, type="secondary", use_container_width=True)
+
+        # Filtros en la siguiente fila
+        col1, col2, col3, col4 = st.columns(4)
+
+        carreras = ["Todas"] + sorted(df["carrera"].dropna().unique().tolist()) if "carrera" in df else ["Todas"]
+        materias = ["Todas"] + sorted(df["materia"].dropna().unique().tolist()) if "materia" in df else ["Todas"]
+        grupos = ["Todos"] + sorted(df["grupo"].dropna().unique().tolist()) if "grupo" in df else ["Todos"]
+        periodos = ["Todos"] + sorted(df["periodo"].dropna().unique().tolist()) if "periodo" in df else ["Todos"]
+
+        with col1: carrera = st.selectbox("Carrera", carreras, key="filtro_carrera")
+        with col2: materia = st.selectbox("Materia", materias, key="filtro_materia")
+        with col3: grupo = st.selectbox("Grupo", grupos, key="filtro_grupo")
+        with col4: periodo = st.selectbox("Periodo", periodos, key="filtro_periodo")
 
 # Aplicar filtros
 filtros_seleccionados = {
@@ -833,7 +1104,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 
 with tab1:
     st.subheader("Panel de Datos consolidado y limpio")
-    st.markdown(tabla_html_estatica(df_filtrado, 420), unsafe_allow_html=True)
+    tabla_html_paginada(df_filtrado)
 
 with tab2:
     st.subheader("Gráficas de desempeño")
@@ -920,11 +1191,11 @@ with tab2:
     plt.close(fig4)
 
 with tab3:
-    st.subheader("Comparaciones entre grupos")
-
     if "grupo" in df:
         df_grupos = aplicar_filtros_custom(df, filtros_seleccionados, omitir="grupo")
-        
+
+        st.subheader("Comparación entre grupos: calificaciones")
+
         comparacion_grupos = df_grupos.groupby("grupo").agg(
             promedio=("calificacion", "mean"),
             minimo=("calificacion", "min"),
@@ -1150,10 +1421,10 @@ with tab6:
         )
     
     with col3:
-        pdf_bytes = generar_pdf(df_filtrado, analisis)
+        pdf_data = generar_pdf(df_filtrado, analisis)
         st.download_button(
             label="Descargar PDF",
-            data=pdf_bytes,
+            data=pdf_data,
             file_name="reporte_academico.pdf",
             mime="application/pdf",
             use_container_width=True
