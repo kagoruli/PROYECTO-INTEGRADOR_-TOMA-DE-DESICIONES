@@ -727,9 +727,9 @@ def convertir_excel(df, reporte_texto):
                 df['calificacion'].mean(),
                 (df['calificacion'] >= RIESGO_CALIFICACION).mean() * 100,
                 (df['calificacion'] < RIESGO_CALIFICACION).sum(),
-                df.groupby('materia')['calificacion'].mean().idxmax() if 'materia' in df else 'N/A',
-                df.groupby('materia')['calificacion'].mean().idxmin() if 'materia' in df else 'N/A'
-            ]
+                df.groupby('materia')['calificacion'].mean().idxmax() if 'materia' in df and not df.empty else 'N/A',
+                df.groupby('materia')['calificacion'].mean().idxmin() if 'materia' in df and not df.empty else 'N/A'
+                ]
         })
         resumen.to_excel(writer, sheet_name='Resumen', index=False)
 
